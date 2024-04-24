@@ -80,7 +80,7 @@ uint8_t shiftIn165(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, int bitT
     return value;
 }
 
-void shiftInN(uint8_t size, const uint8_t *dataPin, uint8_t clockPin, byte *buffer, uint8_t bitOrder) {
+void shiftInN(uint8_t size, const uint8_t* dataPin, uint8_t clockPin, byte* buffer, uint8_t bitOrder) {
     uint8_t value = 0;
     uint8_t i, j;
 
@@ -134,7 +134,7 @@ unsigned long idle = 0;
 
 // UI
 LCD_KEY prevKey = LCD_KEY::None;
-const char *anim = "/-\\|";
+const char* anim = "/-\\|";
 int x = 2;
 int y = 0;
 

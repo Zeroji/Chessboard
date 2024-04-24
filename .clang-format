@@ -1,0 +1,13 @@
+---
+# Use defaults from the LLVM style,
+# but with 4 columns indentation and no line length limit
+BasedOnStyle: LLVM
+ColumnLimit: 0
+IndentWidth: 4
+---
+Language: Cpp
+AlignArrayOfStructures: Left
+# Force pointers to the type for C++.
+DerivePointerAlignment: false
+PointerAlignment: Left
+---
