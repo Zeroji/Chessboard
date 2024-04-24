@@ -3,15 +3,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef ARDUINO_ARCH_AVR
+#include <Arduino.h>
+#define LOG(X) Serial.println(X)
+#define LOG_INDEX(X, IDX) do { Serial.print(X); Serial.print(" (index "); Serial.print(IDX); Serial.println(')'); } while(false)
+#else
+#define HAS_PRINTF
+#define LOG(X) printf(X "\n")
+#define LOG_INDEX(X, IDX) printf(X " (index %d)\n", IDX)
+#endif
+
 const uint8_t NULL_INDEX = 64;
 
 //-----------------------------------------------------------------------------
-void initializeGame(Game* p_game)
+void initializeGame(Game* p_game, uint64_t p_mask)
 //-----------------------------------------------------------------------------
 {
     if (NULL == p_game)
     {
-        printf("Unable to initialize null game\n");
+        LOG("Unable to initialize null game");
         return;
     }
 
@@ -48,6 +58,11 @@ void initializeGame(Game* p_game)
     p_game->board[7*8+6] = BKnight;
     p_game->board[7*8+7] = BRook;
 
+    // Mask pieces
+    for (uint8_t i = 0; i < 64; i++)
+        if ((p_mask & (1uLL << i)) == 0)
+            p_game->board[i] = Empty;
+
     // Game state
     p_game->state.status = WhiteToPlay;
     p_game->state.removed_1.index = NULL_INDEX;
@@ -55,6 +70,8 @@ void initializeGame(Game* p_game)
     p_game->state.removed_2.index = NULL_INDEX;
     p_game->state.removed_2.piece = Empty;
     p_game->moves = 0;
+
+    LOG("Game has been initialized");
 }
 
 //-----------------------------------------------------------------------------
@@ -132,33 +149,34 @@ const char* getPieceStr(EPiece p_piece)
 const char* getStatusStr(EStatus p_status)
 //-----------------------------------------------------------------------------
 {
+    // All strings are of equal width to clear LCD screen
     switch (p_status)
     {
         case WhiteToPlay:
-            return "White to play";
+        return "White to play  ";
         case WhiteIsPlaying:
-            return "White is playing";
+        return "White playing  ";
         case WhiteIsCapturing:
-            return "White is capturing";
+        return "White capturing";
         case WhiteIsCastling:
-            return "White is castling";
+        return "White castling ";
         case BlackToPlay:
-            return "Black to play";
+        return "Black to play  ";
         case BlackIsPlaying:
-            return "Black is playing";
+        return "Black playing  ";
         case BlackIsCapturing:
-            return "Black is capturing";
+        return "Black capturing";
         case BlackIsCastling:
-            return "Black is castling";
+        return "Black castling ";
         case Draw:
-            return "Draw";
+        return "Draw           ";
         case WhiteWon:
-            return "White won";
+        return "White won      ";
         case BlackWon:
-            return "Black won";
+        return "Black won      ";
 
         default:
-            return "Undefined status";
+        return "Undefined      ";
     };
 }
 
@@ -168,24 +186,42 @@ void printGame(Game* p_game)
 {
     if (NULL == p_game)
     {
-        printf("Unable to print null game\n");
+        LOG("Unable to print null game");
         return;
     }
 
-    printf("  +----+----+----+----+----+----+----+----+\n");
+    LOG("  +----+----+----+----+----+----+----+----+");
     for(uint8_t i = 0; i < 8; i++)
     {
+#ifdef HAS_PRINTF
         printf("%d ", (8-i));
         for(uint8_t j = 0; j < 8; j++)
         {
             printf("| %s ", getPieceStr(p_game->board[8*(8-i-1)+j]));
         }
+#else
+        Serial.print(8-i);
+        for(uint8_t j = 0; j < 8; j++)
+        {
+            Serial.print(" | ");
+            Serial.print(getPieceStr(p_game->board[8*(8-i-1)+j]));
+        }
+        Serial.print(' ');
+#endif
 
-        printf("|\n  +----+----+----+----+----+----+----+----+\n");
+        LOG("|\n  +----+----+----+----+----+----+----+----+");
     }
 
-    printf("   a    b    c    d    e    f    g    h\n");
+    LOG("   a    b    c    d    e    f    g    h");
+#ifdef HAS_PRINTF
     printf("[%s, %d move%s]\n", getStatusStr(p_game->state.status), p_game->moves, (p_game->moves > 1 ? "s" : ""));
+#else
+    Serial.print('[');
+    Serial.print(getStatusStr(p_game->state.status));
+    Serial.print(", ");
+    Serial.print(p_game->moves);
+    Serial.print("moves]\n");
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -194,7 +230,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 {
     if (NULL == p_game)
     {
-        printf("Unable to evolve null game\n");
+        LOG("Unable to evolve null game");
         return false;
     }
 
@@ -218,7 +254,9 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
     if ((NULL_INDEX == indexRemoved) && (NULL_INDEX == indexPlaced))
     {
         // No change
-        printf("-> no change\n");
+#ifndef ARDUINO_ARCH_AVR
+        LOG("-> no change");
+#endif
         return false;
     }
 
@@ -231,7 +269,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             if (NULL_INDEX != indexRemoved)
             {
                 // Piece has been removed, white is playing
-                printf("-> Piece is removed (index %d)\n", indexRemoved);
+                LOG_INDEX("-> Piece is removed", indexRemoved);
                 p_game->state.removed_1.index = indexRemoved;
                 p_game->state.removed_1.piece = p_game->board[p_game->state.removed_1.index];
                 p_game->board[p_game->state.removed_1.index] = Empty;
@@ -240,7 +278,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
             if (NULL_INDEX != indexPlaced)
             {
-                printf("-> Additional piece placed during white turn (index %d)!\n", indexPlaced);
+                LOG_INDEX("-> Additional piece placed during white turn!", indexPlaced);
             }
             break;
         }
@@ -252,7 +290,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 if (p_game->state.removed_1.index == indexPlaced)
                 {
                     // A piece has been removed and placed at the same location (undo), still white to play
-                    printf("-> White canceled its move\n");
+                    LOG("-> White canceled its move");
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
@@ -261,7 +299,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 else
                 {
                     // The piece moved to a different location
-                    printf("-> Piece is placed (index %d)\n", indexPlaced);
+                    LOG_INDEX("-> Piece is placed", indexPlaced);
 
                     uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
                     if ((WKing == p_game->state.removed_1.piece) && (2 == diff))
@@ -287,7 +325,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             else if (NULL_INDEX != indexRemoved)
             {
                 // Second piece has been removed, white is capturing
-                printf("-> Second piece is removed (index %d)\n", indexRemoved);
+                LOG_INDEX("-> Second piece is removed", indexRemoved);
                 p_game->state.removed_2.index = indexRemoved;
                 p_game->state.removed_2.piece = p_game->board[p_game->state.removed_2.index];
                 p_game->board[p_game->state.removed_2.index] = Empty;
@@ -302,12 +340,12 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 // The piece has been placed
                 if ((indexPlaced != p_game->state.removed_1.index) && (indexPlaced != p_game->state.removed_2.index))
                 {
-                    printf("Two pieces removed and one piece placed at a different location (index %d)!\n", indexPlaced);
+                    LOG_INDEX("Two pieces removed and one piece placed at a different location!", indexPlaced);
                 }
                 else
                 {
                     // The piece has been placed where one was removed, white has played
-                    printf("-> White captured (index %d)\n", indexPlaced);
+                    LOG_INDEX("-> White captured", indexPlaced);
 
                     // Check which piece has been removed first (capturing piece or captured piece)
                     if (true == isWhite(p_game->state.removed_1.piece))
@@ -333,7 +371,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
             if (NULL_INDEX != indexRemoved)
             {
-                printf("-> Additional piece removed during white capture (index %d)!\n", indexRemoved);
+                LOG_INDEX("-> Additional piece removed during white capture!", indexRemoved);
             }
             break;
         }
@@ -342,14 +380,14 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             if (NULL_INDEX != indexRemoved)
             {
                 // White is castling (2/3)
-                printf("-> Piece is removed (index %d)\n", indexRemoved);
+                LOG_INDEX("-> Piece is removed", indexRemoved);
                 p_game->state.removed_1.index = indexRemoved;
                 p_game->state.removed_1.piece = p_game->board[p_game->state.removed_1.index];
                 p_game->board[p_game->state.removed_1.index] = Empty;
 
                 if (WRook != p_game->state.removed_1.piece)
                 {
-                    printf("-> Second piece removed during castling is not a rook!\n");
+                    LOG("-> Second piece removed during castling is not a rook!");
                 }
             }
 
@@ -357,12 +395,12 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             {
                 if (NULL_INDEX == p_game->state.removed_1.index)
                 {
-                    printf("-> Additional piece is placed during white castling (index %d)!\n", indexPlaced);
+                    LOG_INDEX("-> Additional piece is placed during white castling!", indexPlaced);
                 }
                 else
                 {
                     // White is castling (3/3)
-                    printf("-> Piece is placed (index %d)\n", indexPlaced);
+                    LOG_INDEX("-> Piece is placed", indexPlaced);
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
@@ -380,7 +418,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             if (NULL_INDEX != indexRemoved)
             {
                 // Piece has been removed, black is playing
-                printf("-> Piece is removed (index %d)\n", indexRemoved);
+                LOG_INDEX("-> Piece is removed", indexRemoved);
                 p_game->state.removed_1.index = indexRemoved;
                 p_game->state.removed_1.piece = p_game->board[p_game->state.removed_1.index];
                 p_game->board[p_game->state.removed_1.index] = Empty;
@@ -389,7 +427,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
             if (NULL_INDEX != indexPlaced)
             {
-                printf("-> Additional piece placed during black turn (index %d)!\n", indexPlaced);
+                LOG_INDEX("-> Additional piece placed during black turn!", indexPlaced);
             }
             break;
         }
@@ -401,7 +439,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 if (p_game->state.removed_1.index == indexPlaced)
                 {
                     // A piece has been removed and placed at the same location (undo), still black to play
-                    printf("-> Black canceled its move\n");
+                    LOG("-> Black canceled its move");
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
@@ -410,7 +448,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 else
                 {
                     // The piece moved to a different location
-                    printf("-> Piece is placed (index %d)\n", indexPlaced);
+                    LOG_INDEX("-> Piece is placed", indexPlaced);
 
                     uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
                     if ((BKing == p_game->state.removed_1.piece) && (2 == diff))
@@ -436,7 +474,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             else if (NULL_INDEX != indexRemoved)
             {
                 // Second piece has been removed, black is capturing
-                printf("-> Second piece is removed (index %d)\n", indexRemoved);
+                LOG_INDEX("-> Second piece is removed", indexRemoved);
                 p_game->state.removed_2.index = indexRemoved;
                 p_game->state.removed_2.piece = p_game->board[p_game->state.removed_2.index];
                 p_game->board[p_game->state.removed_2.index] = Empty;
@@ -451,12 +489,12 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 // The piece has been placed
                 if ((indexPlaced != p_game->state.removed_1.index) && (indexPlaced != p_game->state.removed_2.index))
                 {
-                    printf("Two pieces removed and one piece placed at a different location (index %d)!\n", indexPlaced);
+                    LOG_INDEX("Two pieces removed and one piece placed at a different location!", indexPlaced);
                 }
                 else
                 {
                     // The piece has been placed where one was removed, black has played
-                    printf("-> Black captured (index %d)\n", indexPlaced);
+                    LOG_INDEX("-> Black captured", indexPlaced);
 
                     // Check which piece has been removed first (capturing piece or captured piece)
                     if (true == isBlack(p_game->state.removed_1.piece))
@@ -482,7 +520,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
             if (NULL_INDEX != indexRemoved)
             {
-                printf("-> Additional piece removed during black capture (index %d)!\n", indexRemoved);
+                LOG_INDEX("-> Additional piece removed during black capture!", indexRemoved);
             }
 
             break;
@@ -492,14 +530,14 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             if (NULL_INDEX != indexRemoved)
             {
                 // Black is castling (2/3)
-                printf("-> Piece is removed (index %d)\n", indexRemoved);
+                LOG_INDEX("-> Piece is removed", indexRemoved);
                 p_game->state.removed_1.index = indexRemoved;
                 p_game->state.removed_1.piece = p_game->board[p_game->state.removed_1.index];
                 p_game->board[p_game->state.removed_1.index] = Empty;
 
                 if (BRook != p_game->state.removed_1.piece)
                 {
-                    printf("-> Second piece removed during castling is not a rook!\n");
+                    LOG("-> Second piece removed during castling is not a rook!");
                 }
             }
 
@@ -507,12 +545,12 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             {
                 if (NULL_INDEX == p_game->state.removed_1.index)
                 {
-                    printf("-> Additional piece is placed during black castling (index %d)!\n", indexPlaced);
+                    LOG_INDEX("-> Additional piece is placed during black castling!", indexPlaced);
                 }
                 else
                 {
                     // Black is castling (3/3)
-                    printf("-> Piece is placed (index %d)\n", indexPlaced);
+                    LOG_INDEX("-> Piece is placed", indexPlaced);
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
@@ -527,7 +565,13 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
         // ========================= DEFAULT
         default:
         {
+#ifdef HAS_PRINTF
             printf("-> Unhandled game status: %d\n", p_game->state.status);
+#else
+            Serial.print("-> Unhandled game status: ");
+            Serial.print(p_game->state.status);
+            Serial.print('\n');
+#endif
         }
     }
 

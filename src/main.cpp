@@ -2,6 +2,8 @@
 #include <LiquidCrystal.h>
 #include <U8g2lib.h>
 
+#include "chess.h"
+
 constexpr uint8_t PIN_LCD_BTN = A0;
 constexpr uint8_t PIN_HALL_VCC = A5;
 constexpr uint8_t PIN_DATA_1 = A1;
@@ -23,6 +25,8 @@ enum LCD_KEY {
     Left,
     Right,
 };
+
+Game game;
 
 LCD_KEY getLCDKeyPressed() {
     int val = analogRead(PIN_LCD_BTN);
@@ -102,6 +106,7 @@ void setup() {
 
     pinMode(PIN_LCD_BTN, INPUT);
     pinMode(PIN_HALL_VCC, OUTPUT);
+    digitalWrite(PIN_HALL_VCC, HIGH);
     pinMode(PIN_DATA_1, INPUT);
     pinMode(PIN_DATA_2, INPUT);
     pinMode(PIN_DATA_3, INPUT);
@@ -117,6 +122,7 @@ void setup() {
     oled.sendBuffer();
 
     Serial.begin(115200);
+    initializeGame(&game, 0x6600000000000066uLL);
 }
 
 // #define DATASHEET
@@ -129,7 +135,7 @@ unsigned long idle = 0;
 // UI
 LCD_KEY prevKey = LCD_KEY::None;
 const char *anim = "/-\\|";
-int x = 1;
+int x = 2;
 int y = 0;
 
 void loop() {
@@ -193,21 +199,22 @@ void loop() {
     uint8_t leftmost = buf[2];
 #endif
 
-    uint8_t combined = (leftmost & 0x0f) << 4 | (rightmost & 0x0f);
+    uint64_t state = 0;
+    for (uint8_t i = 0; i < 64; i++) {
+        uint8_t buf_idx = 4 - (i << 1 & 4) + (i >> 2 & 1) + (i >> 4 & 2);
+        uint8_t bit_idx = 7 - (i >> 3 & 0b11) - ((i & 1) << 2);
+        if (buf[buf_idx] & (1 << bit_idx))
+            state |= (1uLL << i);
+    }
 
-    // Write data
+    if (prevKey == LCD_KEY::None && lcdKey == LCD_KEY::Select)
+        initializeGame(&game, state);
+
+    // Update game
+    evolveGame(&game, state);
+
     lcd.setCursor(0, 0);
-    lcd.print(anim[loops % 4]);
-    lcd.write("x=");
-    lcd.print(x);
-    lcd.print(" ");
-    lcd.setCursor(8, 0);
-    print_byte(leftmost);
-    lcd.setCursor(3, 1);
-    lcd.print(bitTime_us);
-    lcd.print(" ");
-    lcd.setCursor(8, 1);
-    print_byte(rightmost);
+    lcd.print(getStatusStr(game.state.status));
 
     unsigned long t2 = micros();
     busy += t2 - t1;
@@ -230,7 +237,12 @@ void loop() {
             for (byte k = 0; k < 8; k++)
                 if (buf[j] & (128 >> k))
                     oled.drawBox((((j & 1) * 2 + 1 - (j >> 2)) * 2 + (k >> 2)) * 8 + 32,
-                                 (7 - ((j << 1) & 4) - (k % 4)) * 4, 8, 4);
+                                 (7 - ((j << 1) & 4) - (k % 4)) * 4, 4, 4);
+
+        for (byte lx = 0; lx < 8; lx++)
+            for (byte ly = 0; ly < 8; ly++)
+                if (state & (1uLL << ((7 - ly) * 8 + lx)))
+                    oled.drawBox(lx * 8 + 32 + 4, ly * 4, 4, 4);
 
                     // for (byte k = 0; k < 8; k++)
                     //     if (leftmost & (128 >> k))

@@ -5,11 +5,11 @@
 #include <stdint.h>
 
 //-----------------------------------------------------------------------------
-int main()
+int test_main()
 //-----------------------------------------------------------------------------
 {
     Game game;
-    initializeGame(&game);
+    initializeGame(&game, DEFAULT_SENSORS_STATE);
     printf("Game initialized\n");
 
     printf("Initial board status:\n");

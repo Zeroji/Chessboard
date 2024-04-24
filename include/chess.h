@@ -50,7 +50,7 @@ typedef struct {
     uint8_t moves;
 } Game;
 
-void initializeGame(Game *p_game);
+void initializeGame(Game* p_game, uint64_t p_mask /* = 0xffff00000000ffffuLL */);
 bool isWhite(EPiece p_piece);
 bool isBlack(EPiece p_piece);
 const char* getPieceStr(EPiece p_piece);
