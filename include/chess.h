@@ -17,21 +17,79 @@ typedef enum {
     BlackWon
 } EStatus;
 
+// Use bit masks to check attributes faster
+namespace bits {
+constexpr uint8_t ColorMask      = 0b1000;
+constexpr uint8_t TypeMask       = 0b0111;
+constexpr uint8_t LongRangeFlag  = 0b0100;
+constexpr uint8_t DiagonalFlag   = 0b0010;
+constexpr uint8_t OrthogonalFlag = 0b0001;
+
+constexpr uint8_t White = 0, Black = ColorMask;
+
+constexpr uint8_t Pawn   = DiagonalFlag;
+constexpr uint8_t King   = DiagonalFlag | OrthogonalFlag;
+constexpr uint8_t Knight = LongRangeFlag;
+constexpr uint8_t Rook   = LongRangeFlag | OrthogonalFlag;
+constexpr uint8_t Bishop = LongRangeFlag | DiagonalFlag;
+constexpr uint8_t Queen  = LongRangeFlag | DiagonalFlag | OrthogonalFlag;
+} // namespace bits
+
 typedef enum {
-    Empty = 0,
-    WPawn,
-    WKnight,
-    WBishop,
-    WRook,
-    WQueen,
-    WKing,
-    BPawn,
-    BKnight,
-    BBishop,
-    BRook,
-    BQueen,
-    BKing
+    Empty   = 0,
+    WPawn   = bits::White | bits::Pawn,
+    WKnight = bits::White | bits::Knight,
+    WBishop = bits::White | bits::Bishop,
+    WRook   = bits::White | bits::Rook,
+    WQueen  = bits::White | bits::Queen,
+    WKing   = bits::White | bits::King,
+    BPawn   = bits::Black | bits::Pawn,
+    BKnight = bits::Black | bits::Knight,
+    BBishop = bits::Black | bits::Bishop,
+    BRook   = bits::Black | bits::Rook,
+    BQueen  = bits::Black | bits::Queen,
+    BKing   = bits::Black | bits::King,
 } EPiece;
+
+inline bool isWhite(EPiece p_piece) {
+    return (p_piece != EPiece::Empty) && ((p_piece & bits::ColorMask) == bits::White);
+}
+
+inline bool isBlack(EPiece p_piece) {
+    return (p_piece & bits::ColorMask) == bits::Black;
+}
+
+inline bool isThreateningOrthogonal(EPiece p_piece) {
+    return (p_piece & (bits::LongRangeFlag | bits::OrthogonalFlag)) == (bits::LongRangeFlag | bits::OrthogonalFlag);
+}
+
+inline bool isThreateningDiagonal(EPiece p_piece) {
+    return (p_piece & (bits::LongRangeFlag | bits::DiagonalFlag)) == (bits::LongRangeFlag | bits::DiagonalFlag);
+}
+
+inline bool isPawn(EPiece p_piece) {
+    return (p_piece & bits::TypeMask) == bits::Pawn;
+}
+
+inline bool isKnight(EPiece p_piece) {
+    return (p_piece & bits::TypeMask) == bits::Knight;
+}
+
+inline bool isBishop(EPiece p_piece) {
+    return (p_piece & bits::TypeMask) == bits::Bishop;
+}
+
+inline bool isRook(EPiece p_piece) {
+    return (p_piece & bits::TypeMask) == bits::Rook;
+}
+
+inline bool isQueen(EPiece p_piece) {
+    return (p_piece & bits::TypeMask) == bits::Queen;
+}
+
+inline bool isKing(EPiece p_piece) {
+    return (p_piece & bits::TypeMask) == bits::King;
+}
 
 typedef struct {
     uint8_t index;
@@ -49,6 +107,7 @@ typedef struct {
     uint8_t end;
     EPiece piece;
     bool captured;
+    bool check;
 } Move;
 
 typedef struct {
@@ -66,6 +125,7 @@ const char* getPieceStr(EPiece p_piece);
 const char* getStatusStr(EStatus p_status);
 const char* getMoveStr(Move p_move);
 void printGame(Game* p_game);
+bool isCheck(Game* p_game);
 
 // The sensors status are stored in a 64-bits variable: b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1
 bool evolveGame(Game* p_game, uint64_t p_sensors);

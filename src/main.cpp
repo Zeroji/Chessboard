@@ -4,14 +4,14 @@
 
 #include "chess.h"
 
-constexpr uint8_t PIN_LCD_BTN = A0;
+constexpr uint8_t PIN_LCD_BTN  = A0;
 constexpr uint8_t PIN_HALL_VCC = A5;
-constexpr uint8_t PIN_DATA_1 = A1;
-constexpr uint8_t PIN_DATA_2 = A2;
-constexpr uint8_t PIN_DATA_3 = A3;
-constexpr uint8_t PIN_DATA_4 = A4;
-constexpr uint8_t PIN_SHIFT = 12;
-constexpr uint8_t PIN_CLK = 11;
+constexpr uint8_t PIN_DATA_1   = A1;
+constexpr uint8_t PIN_DATA_2   = A2;
+constexpr uint8_t PIN_DATA_3   = A3;
+constexpr uint8_t PIN_DATA_4   = A4;
+constexpr uint8_t PIN_SHIFT    = 12;
+constexpr uint8_t PIN_CLK      = 11;
 
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
@@ -128,19 +128,19 @@ void setup() {
 // #define DATASHEET
 
 // Time counter
-int loops = 0;
+int loops          = 0;
 unsigned long busy = 0;
 unsigned long idle = 0;
 
 // UI
-LCD_KEY prevKey = LCD_KEY::None;
+LCD_KEY prevKey  = LCD_KEY::None;
 const char* anim = "/-\\|";
-int x = 2;
-int y = 0;
+int x            = 2;
+int y            = 0;
 
 void loop() {
     loops++;
-    LCD_KEY lcdKey = getLCDKeyPressed();
+    LCD_KEY lcdKey   = getLCDKeyPressed();
     unsigned long t1 = micros();
 
     if (prevKey == LCD_KEY::None && lcdKey == LCD_KEY::Up && x < 20)
@@ -170,8 +170,8 @@ void loop() {
         digitalWrite(PIN_CLK, LOW);
     }
 
-    int bitTime_us = 999;
-    uint8_t leftmost = data >> 8;
+    int bitTime_us    = 999;
+    uint8_t leftmost  = data >> 8;
     uint8_t rightmost = data & 0xff;
 #else
     // Load data
@@ -196,7 +196,7 @@ void loop() {
     shiftInN(4, pins, PIN_CLK, buf, LSBFIRST);
     shiftInN(4, pins, PIN_CLK, &buf[4], LSBFIRST);
     uint8_t rightmost = buf[0];
-    uint8_t leftmost = buf[2];
+    uint8_t leftmost  = buf[2];
 #endif
 
     uint64_t state = 0;
