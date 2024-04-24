@@ -45,8 +45,17 @@ typedef struct {
 } State;
 
 typedef struct {
+    uint8_t start;
+    uint8_t end;
+    EPiece piece;
+    bool captured;
+} Move;
+
+typedef struct {
     EPiece board[64]; // a1, b1, c1..., a2, b2, c2...
     State state;
+    Move lastMoveW;
+    Move lastMoveB;
     uint8_t moves;
 } Game;
 
@@ -55,6 +64,7 @@ bool isWhite(EPiece p_piece);
 bool isBlack(EPiece p_piece);
 const char* getPieceStr(EPiece p_piece);
 const char* getStatusStr(EStatus p_status);
+const char* getMoveStr(Move p_move);
 void printGame(Game* p_game);
 
 // The sensors status are stored in a 64-bits variable: b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1

@@ -69,6 +69,8 @@ void initializeGame(Game* p_game, uint64_t p_mask)
     p_game->state.removed_1.piece = Empty;
     p_game->state.removed_2.index = NULL_INDEX;
     p_game->state.removed_2.piece = Empty;
+    p_game->lastMoveB.piece = Empty;
+    p_game->lastMoveW.piece = Empty;
     p_game->moves = 0;
 
     LOG("Game has been initialized");
@@ -305,6 +307,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     if ((WKing == p_game->state.removed_1.piece) && (2 == diff))
                     {
                         // White king replaced two cells away on the same row: white is castling (1/3)
+                        p_game->lastMoveW = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false};
                         p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                         p_game->state.removed_1.index = NULL_INDEX;
                         p_game->state.removed_1.piece = Empty;
@@ -314,6 +317,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     {
                         // White has played
                         p_game->board[indexPlaced] = p_game->state.removed_1.piece;
+                        p_game->lastMoveW = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false};
                         p_game->state.removed_1.index = NULL_INDEX;
                         p_game->state.removed_1.piece = Empty;
                         p_game->state.status = BlackToPlay;
@@ -351,12 +355,14 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     if (true == isWhite(p_game->state.removed_1.piece))
                     {
                         // The capturing piece was removed first
+                        p_game->lastMoveW = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true};
                         p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                     }
                     else if (true == isBlack(p_game->state.removed_1.piece))
                     {
                         // The captured piece was removed first
                         p_game->board[indexPlaced] = p_game->state.removed_2.piece;
+                        p_game->lastMoveW = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, false};
                     }
 
                     p_game->state.removed_1.index = NULL_INDEX;
@@ -402,6 +408,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     // White is castling (3/3)
                     LOG_INDEX("-> Piece is placed", indexPlaced);
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
+                    // p_game->lastMoveW = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false};
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
                     p_game->state.status = BlackToPlay;
@@ -455,6 +462,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     {
                         // Black king replaced two cells away on the same row: black is castling (1/3)
                         p_game->board[indexPlaced] = p_game->state.removed_1.piece;
+                        p_game->lastMoveB = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false};
                         p_game->state.removed_1.index = NULL_INDEX;
                         p_game->state.removed_1.piece = Empty;
                         p_game->state.status = BlackIsCastling;
@@ -463,6 +471,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     {
                         // Black has played
                         p_game->board[indexPlaced] = p_game->state.removed_1.piece;
+                        p_game->lastMoveB = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false};
                         p_game->state.removed_1.index = NULL_INDEX;
                         p_game->state.removed_1.piece = Empty;
                         p_game->state.status = WhiteToPlay;
@@ -500,11 +509,13 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     if (true == isBlack(p_game->state.removed_1.piece))
                     {
                         // The capturing piece was removed first
+                        p_game->lastMoveB = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true};
                         p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                     }
                     else if (true == isWhite(p_game->state.removed_1.piece))
                     {
                         // The captured piece was removed first
+                        p_game->lastMoveB = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, true};
                         p_game->board[indexPlaced] = p_game->state.removed_2.piece;
                     }
 
@@ -552,6 +563,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     // Black is castling (3/3)
                     LOG_INDEX("-> Piece is placed", indexPlaced);
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
+                    // p_game->lastMoveB = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false};
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
                     p_game->state.status = WhiteToPlay;
@@ -576,4 +588,53 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
     }
 
     return false;
+}
+
+const char* getMoveStr(Move p_move) {
+    if (p_move.piece == EPiece::Empty)
+        return "-";
+    if ((p_move.piece == EPiece::BKing) || (p_move.piece == EPiece::WKing)) {
+        if (p_move.start + 2 == p_move.end)
+            return "O-O";
+        if (p_move.start == 2 + p_move.end)
+            return "O-O-O";
+    }
+
+    static char msg[7];
+    uint8_t i = 0;
+
+    switch (p_move.piece) {
+    case WKing:
+    case BKing:
+        msg[i++] = 'K';
+        break;
+    case WQueen:
+    case BQueen:
+        msg[i++] = 'Q';
+        break;
+    case WBishop:
+    case BBishop:
+        msg[i++] = 'B';
+        break;
+    case WKnight:
+    case BKnight:
+        msg[i++] = 'N';
+        break;
+    case WRook:
+    case BRook:
+        msg[i++] = 'R';
+        break;
+    case WPawn:
+    case BPawn:
+        msg[i++] = 'a' + (p_move.start % 8);
+        break;
+    }
+
+    if (p_move.captured)
+        msg[i++] = 'x';
+
+    msg[i++] = 'a' + (p_move.end % 8);
+    msg[i++] = '1' + (p_move.end / 8);
+    msg[i] = 0;
+    return msg;
 }

@@ -214,6 +214,23 @@ void loop() {
     evolveGame(&game, state);
 
     lcd.setCursor(0, 0);
+    int moveCounter = game.moves / 2 + 1;
+    if (game.moves && (game.moves % 2 == 0) && (game.state.status != EStatus::WhiteToPlay)) {
+        lcd.print(moveCounter + 1);
+        lcd.write(".              ");
+    } else {
+        lcd.print(moveCounter);
+        lcd.write(". ");
+        if (game.lastMoveW.piece != EPiece::Empty) {
+            lcd.write(getMoveStr(game.lastMoveW));
+            if (((game.moves & 1) == 0) && (game.lastMoveB.piece != EPiece::Empty)) {
+                lcd.print(" ");
+                lcd.write(getMoveStr(game.lastMoveB));
+            }
+        }
+        lcd.write("             ");
+    }
+    lcd.setCursor(0, 1);
     lcd.print(getStatusStr(game.state.status));
 
     unsigned long t2 = micros();
