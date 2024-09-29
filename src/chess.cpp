@@ -73,6 +73,7 @@ void initializeGame(Game* p_game, uint64_t p_mask)
     p_game->state.removed_1.piece = Empty;
     p_game->state.removed_2.index = NULL_INDEX;
     p_game->state.removed_2.piece = Empty;
+    p_game->state.en_passant      = NULL_INDEX;
     p_game->lastMoveB.piece       = Empty;
     p_game->lastMoveW.piece       = Empty;
     p_game->moves                 = 0;
@@ -126,6 +127,8 @@ const char* getStatusStr(uint8_t p_status)
         return "White playing  ";
     case bits::White | bits::Capturing:
         return "White capturing";
+    case bits::White | bits::EnPassant:
+        return "White enpassant";
     case bits::White | bits::Castling:
         return "White castling ";
     case bits::Black | bits::ToPlay:
@@ -134,6 +137,8 @@ const char* getStatusStr(uint8_t p_status)
         return "Black playing  ";
     case bits::Black | bits::Capturing:
         return "Black capturing";
+    case bits::Black | bits::EnPassant:
+        return "Black enpassant";
     case bits::Black | bits::Castling:
         return "Black castling ";
     case bits::Draw | bits::Finished:
@@ -316,6 +321,32 @@ bool isCheck(Game* p_game)
 }
 
 //-----------------------------------------------------------------------------
+uint8_t findEnPassantSquare(Move* p_move)
+//-----------------------------------------------------------------------------
+{
+    if (NULL == p_move) {
+        LOG("Unable to analyze en passant of null move");
+        return NULL_INDEX;
+    }
+
+    if (!isPawn(p_move->piece)) {
+        return NULL_INDEX;
+    }
+
+    uint8_t startRow = (p_move->start / 8);
+    uint8_t endRow   = (p_move->end / 8);
+    uint8_t endCol   = (p_move->end % 8);
+
+    if ((startRow == 1) && (endRow == 3)) {
+        return 2 * 8 + endCol; // white pawn can be taken en passant
+    }
+    if ((startRow == 6) && (endRow == 4)) {
+        return 5 * 8 + endCol; // black pawn can be taken en passant
+    }
+    return NULL_INDEX;
+}
+
+//-----------------------------------------------------------------------------
 bool isPromotion(Move* p_move)
 //-----------------------------------------------------------------------------
 {
@@ -449,6 +480,21 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     p_game->state.removed_1.piece = Empty;
                     p_game->state.status          = otherPlayer | bits::ToPlay;
 
+                    // Check for en passant capture
+                    if (p_game->state.en_passant == indexPlaced && isPawn(lastMovePtr->piece)) {
+                        uint8_t startRow         = (lastMovePtr->start / 8);
+                        uint8_t endCol           = (indexPlaced % 8);
+                        p_game->state.en_passant = startRow * 8 + endCol; // position of pawn taken en passant
+                        p_game->state.status     = player | bits::EnPassant;
+                        return true;
+                    }
+
+                    // Check for en passant possible next turn
+                    p_game->state.en_passant = findEnPassantSquare(lastMovePtr);
+                    if (p_game->state.en_passant != NULL_INDEX) {
+                        LOG_INDEX("en passant possible at index", p_game->state.en_passant);
+                    }
+
                     // Check for promotion
                     if (true == isPromotion(lastMovePtr)) {
                         lastMovePtr->promotion     = true;
@@ -496,6 +542,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->state.removed_1.piece = Empty;
                 p_game->state.removed_2.index = NULL_INDEX;
                 p_game->state.removed_2.piece = Empty;
+                p_game->state.en_passant      = NULL_INDEX;
                 p_game->state.status          = otherPlayer | bits::ToPlay;
 
                 // Check for promotion
@@ -512,6 +559,24 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
         if (NULL_INDEX != indexRemoved) {
             LOG_INDEX("-> Additional piece removed during capture!", indexRemoved);
+        }
+        break;
+    }
+
+    // ========================= IS CAPTURING en passant
+    case bits::EnPassant: {
+        if (NULL_INDEX != indexPlaced) {
+            LOG_INDEX("-> Additional piece placed during en passant!", indexPlaced);
+        } else if (indexRemoved == p_game->state.en_passant) {
+            p_game->board[indexRemoved] = Empty;
+            lastMovePtr->captured       = true;
+            lastMovePtr->check          = isCheck(p_game);
+            p_game->state.en_passant    = NULL_INDEX;
+            p_game->state.status        = otherPlayer | bits::ToPlay;
+            p_game->moves++;
+            return true;
+        } else {
+            LOG_INDEX("-> Wrong piece removed during en passant!", indexRemoved);
         }
         break;
     }
@@ -539,6 +604,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
                 p_game->state.removed_1.index = NULL_INDEX;
                 p_game->state.removed_1.piece = Empty;
+                p_game->state.en_passant      = NULL_INDEX;
                 p_game->state.status          = otherPlayer | bits::ToPlay;
                 lastMovePtr->check            = isCheck(p_game); // Rarest move ever if true :)
                 p_game->moves++;
