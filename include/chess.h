@@ -5,28 +5,28 @@
 
 // Use bit masks to check attributes faster
 namespace bits {
-    constexpr uint8_t ColorMask      = 0b1000000;
-    constexpr uint8_t TypeMask       = 0b0000111;
-    constexpr uint8_t LongRangeFlag  = 0b0000100;
-    constexpr uint8_t DiagonalFlag   = 0b0000010;
-    constexpr uint8_t OrthogonalFlag = 0b0000001;
+constexpr uint8_t ColorMask      = 0b1000000;
+constexpr uint8_t TypeMask       = 0b0000111;
+constexpr uint8_t LongRangeFlag  = 0b0000100;
+constexpr uint8_t DiagonalFlag   = 0b0000010;
+constexpr uint8_t OrthogonalFlag = 0b0000001;
 
-    constexpr uint8_t Pawn   = DiagonalFlag;
-    constexpr uint8_t King   = DiagonalFlag | OrthogonalFlag;
-    constexpr uint8_t Knight = LongRangeFlag;
-    constexpr uint8_t Rook   = LongRangeFlag | OrthogonalFlag;
-    constexpr uint8_t Bishop = LongRangeFlag | DiagonalFlag;
-    constexpr uint8_t Queen  = LongRangeFlag | DiagonalFlag | OrthogonalFlag;
+constexpr uint8_t Pawn   = DiagonalFlag;
+constexpr uint8_t King   = DiagonalFlag | OrthogonalFlag;
+constexpr uint8_t Knight = LongRangeFlag;
+constexpr uint8_t Rook   = LongRangeFlag | OrthogonalFlag;
+constexpr uint8_t Bishop = LongRangeFlag | DiagonalFlag;
+constexpr uint8_t Queen  = LongRangeFlag | DiagonalFlag | OrthogonalFlag;
 
-    constexpr uint8_t White = 0, Black = ColorMask;
+constexpr uint8_t White = 0, Black = ColorMask;
 
-    constexpr uint8_t MoveMask  = 0b111111;
-    constexpr uint8_t ToPlay    = 0b000001;
-    constexpr uint8_t Playing   = 0b000010;
-    constexpr uint8_t Capturing = 0b000100;
-    constexpr uint8_t Castling  = 0b001000;
-    constexpr uint8_t Finished  = 0b010000;
-    constexpr uint8_t Draw      = 0b100000;
+constexpr uint8_t MoveMask  = 0b111111;
+constexpr uint8_t ToPlay    = 0b000001;
+constexpr uint8_t Playing   = 0b000010;
+constexpr uint8_t Capturing = 0b000100;
+constexpr uint8_t Castling  = 0b001000;
+constexpr uint8_t Finished  = 0b010000;
+constexpr uint8_t Draw      = 0b100000;
 } // namespace bits
 
 typedef enum {

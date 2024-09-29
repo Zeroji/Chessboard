@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cstring>
+#include <string.h>
 
 #ifdef ARDUINO_ARCH_AVR
 #include <Arduino.h>
@@ -325,15 +325,13 @@ bool isPromotion(Move* p_move)
     }
 
     uint8_t startRow = (p_move->start / 8) + 1;
-    uint8_t endRow = (p_move->end / 8) + 1;
+    uint8_t endRow   = (p_move->end / 8) + 1;
 
-    if ((7 == startRow) && (8 == endRow) && isPawn(p_move->piece) && isWhite(p_move->piece))
-    {
+    if ((7 == startRow) && (8 == endRow) && isPawn(p_move->piece) && isWhite(p_move->piece)) {
         return true;
     }
 
-    if ((2 == startRow) && (1 == endRow) && isPawn(p_move->piece) && isBlack(p_move->piece))
-    {
+    if ((2 == startRow) && (1 == endRow) && isPawn(p_move->piece) && isBlack(p_move->piece)) {
         return true;
     }
 
@@ -393,12 +391,9 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
     switch (currentMove) {
     // ========================= GAME FINISHED
     case bits::Finished:
-        if (bits::White == player)
-        {
+        if (bits::White == player) {
             LOG("-> Game is over: white won!");
-        }
-        else
-        {
+        } else {
             LOG("-> Game is over: black won!");
         }
         return false;
@@ -422,7 +417,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
         }
         break;
     }
-    
+
     // ========================= IS PLAYING
     case bits::Playing: {
         if (NULL_INDEX != indexPlaced) {
@@ -455,9 +450,8 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     p_game->state.status          = otherPlayer | bits::ToPlay;
 
                     // Check for promotion
-                    if (true == isPromotion(lastMovePtr))
-                    {
-                        lastMovePtr->promotion = true;
+                    if (true == isPromotion(lastMovePtr)) {
+                        lastMovePtr->promotion     = true;
                         p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
                     }
 
@@ -505,13 +499,12 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->state.status          = otherPlayer | bits::ToPlay;
 
                 // Check for promotion
-                if (true == isPromotion(lastMovePtr))
-                {
-                    lastMovePtr->promotion = true;
+                if (true == isPromotion(lastMovePtr)) {
+                    lastMovePtr->promotion     = true;
                     p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
                 }
 
-                lastMovePtr->check            = isCheck(p_game);
+                lastMovePtr->check = isCheck(p_game);
                 p_game->moves++;
                 return true;
             }
@@ -610,10 +603,10 @@ const char* getMoveStr(Move p_move)
     static const char CastlingMsg[5] = {'O', '-', 'O', '-', 'O'};
     if (isKing(p_move.piece)) {
         if (p_move.start + 2 == p_move.end) {
-            std::memcpy(msg, CastlingMsg, i = 3);
+            memcpy(msg, CastlingMsg, i = 3);
         }
         if (p_move.start == 2 + p_move.end) {
-            std::memcpy(msg, CastlingMsg, i = 5);
+            memcpy(msg, CastlingMsg, i = 5);
         }
     }
 
