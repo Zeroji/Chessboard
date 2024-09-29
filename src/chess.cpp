@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 
 #ifdef ARDUINO_ARCH_AVR
 #include <Arduino.h>
@@ -67,7 +68,7 @@ void initializeGame(Game* p_game, uint64_t p_mask)
             p_game->board[i] = Empty;
 
     // Game state
-    p_game->state.status          = WhiteToPlay;
+    p_game->state.status          = bits::White | bits::ToPlay;
     p_game->state.removed_1.index = NULL_INDEX;
     p_game->state.removed_1.piece = Empty;
     p_game->state.removed_2.index = NULL_INDEX;
@@ -114,32 +115,32 @@ const char* getPieceStr(EPiece p_piece)
 }
 
 //-----------------------------------------------------------------------------
-const char* getStatusStr(EStatus p_status)
+const char* getStatusStr(uint8_t p_status)
 //-----------------------------------------------------------------------------
 {
     // All strings are of equal width to clear LCD screen
     switch (p_status) {
-    case WhiteToPlay:
+    case bits::White | bits::ToPlay:
         return "White to play  ";
-    case WhiteIsPlaying:
+    case bits::White | bits::Playing:
         return "White playing  ";
-    case WhiteIsCapturing:
+    case bits::White | bits::Capturing:
         return "White capturing";
-    case WhiteIsCastling:
+    case bits::White | bits::Castling:
         return "White castling ";
-    case BlackToPlay:
+    case bits::Black | bits::ToPlay:
         return "Black to play  ";
-    case BlackIsPlaying:
+    case bits::Black | bits::Playing:
         return "Black playing  ";
-    case BlackIsCapturing:
+    case bits::Black | bits::Capturing:
         return "Black capturing";
-    case BlackIsCastling:
+    case bits::Black | bits::Castling:
         return "Black castling ";
-    case Draw:
+    case bits::Draw | bits::Finished:
         return "Draw           ";
-    case WhiteWon:
+    case bits::White | bits::Finished:
         return "White won      ";
-    case BlackWon:
+    case bits::Black | bits::Finished:
         return "Black won      ";
 
     default:
@@ -199,15 +200,17 @@ bool isCheck(Game* p_game)
     bool (*isCheckingColor)(EPiece);
     bool (*isCheckedColor)(EPiece);
 
-    if (WhiteToPlay == p_game->state.status) {
-        isCheckingColor = &isBlack;
-        isCheckedColor  = &isWhite;
-    } else if (BlackToPlay == p_game->state.status) {
-        isCheckingColor = &isWhite;
-        isCheckedColor  = &isBlack;
-    } else {
+    uint8_t nextPlayer = (p_game->state.status & bits::ColorMask);
+
+    if (0 == (p_game->state.status & bits::ToPlay)) {
         LOG("Unable to analyze check when neither white nor black has to play");
         return false;
+    } else if (bits::White == nextPlayer) {
+        isCheckingColor = &isBlack;
+        isCheckedColor  = &isWhite;
+    } else {
+        isCheckingColor = &isWhite;
+        isCheckedColor  = &isBlack;
     }
 
     // Find King
@@ -278,7 +281,7 @@ bool isCheck(Game* p_game)
 
     // 3. Check from Pawns
     const int8_t posPCol[2] = {-1, 1};
-    const uint8_t dirPRow   = (WhiteToPlay == p_game->state.status) ? 1 : -1;
+    const uint8_t dirPRow   = (bits::White == nextPlayer) ? 1 : -1;
 
     for (uint8_t i = 0; i < 2; i++) {
         uint8_t col = checkedKingCol + posPCol[i];
@@ -294,6 +297,7 @@ bool isCheck(Game* p_game)
 
     return false;
 }
+
 //-----------------------------------------------------------------------------
 bool evolveGame(Game* p_game, uint64_t p_sensors)
 //-----------------------------------------------------------------------------
@@ -325,107 +329,146 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
         return false;
     }
 
+    uint8_t player      = (p_game->state.status & bits::ColorMask);
+    uint8_t otherPlayer = bits::White == player ? bits::Black : bits::White;
+    uint8_t currentMove = (p_game->state.status & bits::MoveMask);
+    Move* lastMovePtr;
+
+    bool (*isPlayerColor)(EPiece);
+    bool (*isOtherPlayerColor)(EPiece);
+
+    if (bits::White == player) {
+        lastMovePtr        = &(p_game->lastMoveW);
+        isPlayerColor      = &isWhite;
+        isOtherPlayerColor = &isBlack;
+    } else {
+        lastMovePtr        = &(p_game->lastMoveB);
+        isPlayerColor      = &isBlack;
+        isOtherPlayerColor = &isWhite;
+    }
+
     // Decision flow
-    switch (p_game->state.status) {
-        // ========================= WHITE TURN
-    case WhiteToPlay: {
+    switch (currentMove) {
+    // ========================= GAME FINISHED
+    case bits::Finished:
+        if (bits::White == player)
+        {
+            LOG("-> Game is over: white won!");
+        }
+        else
+        {
+            LOG("-> Game is over: black won!");
+        }
+        return false;
+    case bits::Draw:
+        LOG("-> Game is over: draw!");
+        return false;
+
+    // ========================= TO PLAY
+    case bits::ToPlay: {
         if (NULL_INDEX != indexRemoved) {
-            // Piece has been removed, white is playing
+            // Piece has been removed, player is playing
             LOG_INDEX("-> Piece is removed", indexRemoved);
             p_game->state.removed_1.index                = indexRemoved;
             p_game->state.removed_1.piece                = p_game->board[p_game->state.removed_1.index];
             p_game->board[p_game->state.removed_1.index] = Empty;
-            p_game->state.status                         = WhiteIsPlaying;
+            p_game->state.status                         = player | bits::Playing;
         }
 
         if (NULL_INDEX != indexPlaced) {
-            LOG_INDEX("-> Additional piece placed during white turn!", indexPlaced);
+            LOG_INDEX("-> Additional piece placed during player turn!", indexPlaced);
         }
         break;
     }
-    case WhiteIsPlaying: {
+    
+    // ========================= IS PLAYING
+    case bits::Playing: {
         if (NULL_INDEX != indexPlaced) {
             // Piece has been placed
             if (p_game->state.removed_1.index == indexPlaced) {
-                // A piece has been removed and placed at the same location (undo), still white to play
-                LOG("-> White canceled its move");
+                // A piece has been removed and placed at the same location (undo), still same player to play
+                LOG("-> Player canceled its move");
                 p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
                 p_game->state.removed_1.index = NULL_INDEX;
                 p_game->state.removed_1.piece = Empty;
-                p_game->state.status          = WhiteToPlay;
+                p_game->state.status          = player | bits::ToPlay;
             } else {
                 // The piece moved to a different location
                 LOG_INDEX("-> Piece is placed", indexPlaced);
 
                 uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
                 if ((WKing == p_game->state.removed_1.piece) && (2 == diff)) {
-                    // White king replaced two cells away on the same row: white is castling (1/3)
-                    p_game->lastMoveW             = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
+                    // King replaced two cells away on the same row: player is castling (1/3)
+                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
-                    p_game->state.status          = WhiteIsCastling;
+                    p_game->state.status          = player | bits::Castling;
                 } else {
-                    // White has played
+                    // Player has played
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                    p_game->lastMoveW             = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
+                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
-                    p_game->state.status          = BlackToPlay;
-                    p_game->lastMoveW.check       = isCheck(p_game);
+                    p_game->state.status          = otherPlayer | bits::ToPlay;
+                    lastMovePtr->check            = isCheck(p_game);
                     p_game->moves++;
                     return true;
                 }
             }
         } else if (NULL_INDEX != indexRemoved) {
-            // Second piece has been removed, white is capturing
+            // Second piece has been removed, player is capturing
             LOG_INDEX("-> Second piece is removed", indexRemoved);
             p_game->state.removed_2.index                = indexRemoved;
             p_game->state.removed_2.piece                = p_game->board[p_game->state.removed_2.index];
             p_game->board[p_game->state.removed_2.index] = Empty;
-            p_game->state.status                         = WhiteIsCapturing;
+            p_game->state.status                         = player | bits::Capturing;
         }
         break;
     }
-    case WhiteIsCapturing: {
+
+    // ========================= IS CAPTURING
+    case bits::Capturing: {
         if (NULL_INDEX != indexPlaced) {
             // The piece has been placed
             if ((indexPlaced != p_game->state.removed_1.index) && (indexPlaced != p_game->state.removed_2.index)) {
                 LOG_INDEX("Two pieces removed and one piece placed at a different location!", indexPlaced);
             } else {
-                // The piece has been placed where one was removed, white has played
-                LOG_INDEX("-> White captured", indexPlaced);
+                // The piece has been placed where one was removed, player has played
+                LOG_INDEX("-> Player captured", indexPlaced);
 
                 // Check which piece has been removed first (capturing piece or captured piece)
-                if (true == isWhite(p_game->state.removed_1.piece)) {
+                if (true == isPlayerColor(p_game->state.removed_1.piece)) {
                     // The capturing piece was removed first
-                    p_game->lastMoveW          = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true, false};
+                    *lastMovePtr               = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true, false};
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
-                } else if (true == isBlack(p_game->state.removed_1.piece)) {
+                } else if (true == isOtherPlayerColor(p_game->state.removed_1.piece)) {
                     // The captured piece was removed first
                     p_game->board[indexPlaced] = p_game->state.removed_2.piece;
-                    p_game->lastMoveW          = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, false, false};
+                    *lastMovePtr               = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, false, false};
                 }
 
                 p_game->state.removed_1.index = NULL_INDEX;
                 p_game->state.removed_1.piece = Empty;
                 p_game->state.removed_2.index = NULL_INDEX;
                 p_game->state.removed_2.piece = Empty;
-                p_game->state.status          = BlackToPlay;
-                p_game->lastMoveW.check       = isCheck(p_game);
+                p_game->state.status          = otherPlayer | bits::ToPlay;
+                lastMovePtr->check            = isCheck(p_game);
                 p_game->moves++;
                 return true;
             }
         }
 
         if (NULL_INDEX != indexRemoved) {
-            LOG_INDEX("-> Additional piece removed during white capture!", indexRemoved);
+            LOG_INDEX("-> Additional piece removed during capture!", indexRemoved);
         }
         break;
     }
-    case WhiteIsCastling: {
+
+    // ========================= IS CAPTURING
+    case bits::Castling: {
         if (NULL_INDEX != indexRemoved) {
-            // White is castling (2/3)
+            // Player is castling (2/3)
             LOG_INDEX("-> Piece is removed", indexRemoved);
             p_game->state.removed_1.index                = indexRemoved;
             p_game->state.removed_1.piece                = p_game->board[p_game->state.removed_1.index];
@@ -438,143 +481,15 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
         if (NULL_INDEX != indexPlaced) {
             if (NULL_INDEX == p_game->state.removed_1.index) {
-                LOG_INDEX("-> Additional piece is placed during white castling!", indexPlaced);
+                LOG_INDEX("-> Additional piece is placed during castling!", indexPlaced);
             } else {
-                // White is castling (3/3)
+                // Player is castling (3/3)
                 LOG_INDEX("-> Piece is placed", indexPlaced);
                 p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
                 p_game->state.removed_1.index = NULL_INDEX;
                 p_game->state.removed_1.piece = Empty;
-                p_game->state.status          = BlackToPlay;
-                p_game->lastMoveW.check       = isCheck(p_game);
-                p_game->moves++;
-                return true;
-            }
-        }
-        break;
-    }
-
-        // ========================= BLACK TURN
-    case BlackToPlay: {
-        if (NULL_INDEX != indexRemoved) {
-            // Piece has been removed, black is playing
-            LOG_INDEX("-> Piece is removed", indexRemoved);
-            p_game->state.removed_1.index                = indexRemoved;
-            p_game->state.removed_1.piece                = p_game->board[p_game->state.removed_1.index];
-            p_game->board[p_game->state.removed_1.index] = Empty;
-            p_game->state.status                         = BlackIsPlaying;
-        }
-
-        if (NULL_INDEX != indexPlaced) {
-            LOG_INDEX("-> Additional piece placed during black turn!", indexPlaced);
-        }
-        break;
-    }
-    case BlackIsPlaying: {
-        if (NULL_INDEX != indexPlaced) {
-            // Piece has been placed
-            if (p_game->state.removed_1.index == indexPlaced) {
-                // A piece has been removed and placed at the same location (undo), still black to play
-                LOG("-> Black canceled its move");
-                p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                p_game->state.removed_1.index = NULL_INDEX;
-                p_game->state.removed_1.piece = Empty;
-                p_game->state.status          = BlackToPlay;
-            } else {
-                // The piece moved to a different location
-                LOG_INDEX("-> Piece is placed", indexPlaced);
-
-                uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
-                if ((BKing == p_game->state.removed_1.piece) && (2 == diff)) {
-                    // Black king replaced two cells away on the same row: black is castling (1/3)
-                    p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                    p_game->lastMoveB             = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
-                    p_game->state.removed_1.index = NULL_INDEX;
-                    p_game->state.removed_1.piece = Empty;
-                    p_game->state.status          = BlackIsCastling;
-                } else {
-                    // Black has played
-                    p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                    p_game->lastMoveB             = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
-                    p_game->state.removed_1.index = NULL_INDEX;
-                    p_game->state.removed_1.piece = Empty;
-                    p_game->state.status          = WhiteToPlay;
-                    p_game->lastMoveB.check       = isCheck(p_game);
-                    p_game->moves++;
-                    return true;
-                }
-            }
-        } else if (NULL_INDEX != indexRemoved) {
-            // Second piece has been removed, black is capturing
-            LOG_INDEX("-> Second piece is removed", indexRemoved);
-            p_game->state.removed_2.index                = indexRemoved;
-            p_game->state.removed_2.piece                = p_game->board[p_game->state.removed_2.index];
-            p_game->board[p_game->state.removed_2.index] = Empty;
-            p_game->state.status                         = BlackIsCapturing;
-        }
-        break;
-    }
-    case BlackIsCapturing: {
-        if (NULL_INDEX != indexPlaced) {
-            // The piece has been placed
-            if ((indexPlaced != p_game->state.removed_1.index) && (indexPlaced != p_game->state.removed_2.index)) {
-                LOG_INDEX("Two pieces removed and one piece placed at a different location!", indexPlaced);
-            } else {
-                // The piece has been placed where one was removed, black has played
-                LOG_INDEX("-> Black captured", indexPlaced);
-
-                // Check which piece has been removed first (capturing piece or captured piece)
-                if (true == isBlack(p_game->state.removed_1.piece)) {
-                    // The capturing piece was removed first
-                    p_game->lastMoveB          = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true, false};
-                    p_game->board[indexPlaced] = p_game->state.removed_1.piece;
-                } else if (true == isWhite(p_game->state.removed_1.piece)) {
-                    // The captured piece was removed first
-                    p_game->lastMoveB          = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, true, false};
-                    p_game->board[indexPlaced] = p_game->state.removed_2.piece;
-                }
-
-                p_game->state.removed_1.index = NULL_INDEX;
-                p_game->state.removed_1.piece = Empty;
-                p_game->state.removed_2.index = NULL_INDEX;
-                p_game->state.removed_2.piece = Empty;
-                p_game->state.status          = WhiteToPlay;
-                p_game->lastMoveB.check       = isCheck(p_game);
-                p_game->moves++;
-                return true;
-            }
-        }
-
-        if (NULL_INDEX != indexRemoved) {
-            LOG_INDEX("-> Additional piece removed during black capture!", indexRemoved);
-        }
-
-        break;
-    }
-    case BlackIsCastling: {
-        if (NULL_INDEX != indexRemoved) {
-            // Black is castling (2/3)
-            LOG_INDEX("-> Piece is removed", indexRemoved);
-            p_game->state.removed_1.index                = indexRemoved;
-            p_game->state.removed_1.piece                = p_game->board[p_game->state.removed_1.index];
-            p_game->board[p_game->state.removed_1.index] = Empty;
-
-            if (BRook != p_game->state.removed_1.piece) {
-                LOG("-> Second piece removed during castling is not a rook!");
-            }
-        }
-
-        if (NULL_INDEX != indexPlaced) {
-            if (NULL_INDEX == p_game->state.removed_1.index) {
-                LOG_INDEX("-> Additional piece is placed during black castling!", indexPlaced);
-            } else {
-                // Black is castling (3/3)
-                LOG_INDEX("-> Piece is placed", indexPlaced);
-                p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                p_game->state.removed_1.index = NULL_INDEX;
-                p_game->state.removed_1.piece = Empty;
-                p_game->state.status          = WhiteToPlay;
-                p_game->lastMoveB.check       = isCheck(p_game);
+                p_game->state.status          = otherPlayer | bits::ToPlay;
+                lastMovePtr->check            = isCheck(p_game); // Rarest move ever if true :)
                 p_game->moves++;
                 return true;
             }
@@ -597,7 +512,10 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
     return false;
 }
 
-const char* getMoveStr(Move p_move) {
+//-----------------------------------------------------------------------------
+const char* getMoveStr(Move p_move)
+//-----------------------------------------------------------------------------
+{
     if (p_move.piece == EPiece::Empty)
         return "-";
     static char msg[7];
@@ -630,14 +548,14 @@ const char* getMoveStr(Move p_move) {
     msg[i++] = 'a' + (p_move.end % 8);
     msg[i++] = '1' + (p_move.end / 8);
 
-    // Override message with rook
-    static const char RookMsg[5] = {'O', '-', 'O', '-', 'O'};
+    // Override message with castling
+    static const char CastlingMsg[5] = {'O', '-', 'O', '-', 'O'};
     if (isKing(p_move.piece)) {
         if (p_move.start + 2 == p_move.end) {
-            memcpy(msg, RookMsg, i = 3);
+            std::memcpy(msg, CastlingMsg, i = 3);
         }
         if (p_move.start == 2 + p_move.end) {
-            memcpy(msg, RookMsg, i = 5);
+            std::memcpy(msg, CastlingMsg, i = 5);
         }
     }
 

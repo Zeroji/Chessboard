@@ -34,7 +34,7 @@ void loop() {
     // Display moves on LCD screen
     lcd.setCursor(0, 0);
     int moveCounter = game.moves / 2 + 1;
-    if (game.moves && (game.moves % 2 == 0) && (game.state.status != EStatus::WhiteToPlay)) {
+    if (game.moves && (game.moves % 2 == 0) && (game.state.status != (bits::White | bits::ToPlay))) {
         lcd.print(moveCounter + 1);
         lcd.write(".              ");
     } else {
