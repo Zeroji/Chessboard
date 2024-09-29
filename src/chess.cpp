@@ -495,7 +495,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 } else if (true == isOtherPlayerColor(p_game->state.removed_1.piece)) {
                     // The captured piece was removed first
                     p_game->board[indexPlaced] = p_game->state.removed_2.piece;
-                    *lastMovePtr               = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, false, false, false};
+                    *lastMovePtr               = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, true, false, false};
                 }
 
                 p_game->state.removed_1.index = NULL_INDEX;
