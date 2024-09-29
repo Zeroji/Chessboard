@@ -1,11 +1,11 @@
-#include "../include/chess.h"
+#include "../../include/chess.h"
 #include "../include/sensors.h"
 
 #include <stdint.h>
 #include <stdio.h>
 
 //-----------------------------------------------------------------------------
-int test_main()
+int main()
 //-----------------------------------------------------------------------------
 {
     Game game;
