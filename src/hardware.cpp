@@ -80,23 +80,33 @@ uint64_t readChessboard() {
     // Read data
     uint64_t state = 0;
 
-#if defined(CHESSBOARD_REV_A)
+#if defined(CHESSBOARD_REV_A) or defined(CHESSBOARD_REV_A_JUMPED)
     constexpr uint64_t baseOffset0 = 1uLL << 0;
     constexpr uint64_t baseOffset1 = 1uLL << 4;
     constexpr uint64_t baseOffset2 = 1uLL << 32;
     constexpr uint64_t baseOffset3 = 1uLL << 36;
 
+#if defined(CHESSBOARD_REV_A_JUMPED)
+    for (byte i = 0; i < 32; i++) {
+        const byte bitshift = ((i >> 2) | ((i & 3) << 3)) ^ 0b11011; // Optimized with C++23
+#else
     for (byte i = 0; i < 16; i++) {
         const byte bitshift = (3 - (i >> 2)) | ((3 - (i & 0b11)) << 3);
+#endif
 #if defined(USE_FAST_GPIO)
         if (FastGPIO::Pin<PIN_DATA_0>::isInputHigh())
             state |= (baseOffset0 << bitshift);
+#if defined(CHESSBOARD_REV_A_JUMPED)
+        if (FastGPIO::Pin<PIN_DATA_2>::isInputHigh())
+            state |= (baseOffset2 << bitshift);
+#else
         if (FastGPIO::Pin<PIN_DATA_1>::isInputHigh())
             state |= (baseOffset1 << bitshift);
         if (FastGPIO::Pin<PIN_DATA_2>::isInputHigh())
             state |= (baseOffset2 << bitshift);
         if (FastGPIO::Pin<PIN_DATA_3>::isInputHigh())
             state |= (baseOffset3 << bitshift);
+#endif // Rev A jumped
 
         // Clock tick
         FastGPIO::Pin<PIN_CLOCK>::setOutputValueHigh();
@@ -104,12 +114,17 @@ uint64_t readChessboard() {
 #else
         if (digitalRead(PIN_DATA_0) == HIGH)
             state |= (baseOffset0 << bitshift);
+#if defined(CHESSBOARD_REV_A_JUMPED)
+        if (digitalRead(PIN_DATA_2) == HIGH)
+            state |= (baseOffset2 << bitshift);
+#else
         if (digitalRead(PIN_DATA_1) == HIGH)
             state |= (baseOffset1 << bitshift);
         if (digitalRead(PIN_DATA_2) == HIGH)
             state |= (baseOffset2 << bitshift);
         if (digitalRead(PIN_DATA_3) == HIGH)
             state |= (baseOffset3 << bitshift);
+#endif // Rev A jumped
 
         // Clock tick
         digitalWrite(PIN_CLOCK, HIGH);

@@ -11,7 +11,7 @@
 #define USE_FAST_GPIO
 
 // Hardware revision of the chessboard
-#define CHESSBOARD_REV_A
+#define CHESSBOARD_REV_A_JUMPED
 
 // Pin definitions for LCD (not sure how to move these to .cpp file)
 constexpr uint8_t PIN_LCD_RS = 8;
