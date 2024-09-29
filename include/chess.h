@@ -102,6 +102,7 @@ typedef struct {
     EPiece piece;
     bool captured;
     bool check;
+    bool promotion;
 } Move;
 
 typedef struct {

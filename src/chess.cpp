@@ -186,6 +186,23 @@ void printGame(Game* p_game)
     Serial.print(p_game->moves);
     Serial.print("moves]\n");
 #endif
+
+    if ((p_game->state.status & bits::MoveMask) == bits::ToPlay) {
+        Move* lastMove;
+        if ((p_game->state.status & bits::ColorMask) == bits::White) {
+            lastMove = &(p_game->lastMoveB);
+        } else {
+            lastMove = &(p_game->lastMoveW);
+        }
+
+#ifdef HAS_PRINTF
+        printf("[Last move: %s]\n", getMoveStr(*lastMove));
+#else
+        Serial.print("[Last move: ");
+        Serial.print(getMoveStr(*lastMove));
+        Serial.print("]\n");
+#endif
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -299,6 +316,31 @@ bool isCheck(Game* p_game)
 }
 
 //-----------------------------------------------------------------------------
+bool isPromotion(Move* p_move)
+//-----------------------------------------------------------------------------
+{
+    if (NULL == p_move) {
+        LOG("Unable to analyze promotion of null move");
+        return false;
+    }
+
+    uint8_t startRow = (p_move->start / 8) + 1;
+    uint8_t endRow = (p_move->end / 8) + 1;
+
+    if ((7 == startRow) && (8 == endRow) && isPawn(p_move->piece) && isWhite(p_move->piece))
+    {
+        return true;
+    }
+
+    if ((2 == startRow) && (1 == endRow) && isPawn(p_move->piece) && isBlack(p_move->piece))
+    {
+        return true;
+    }
+
+    return false;
+}
+
+//-----------------------------------------------------------------------------
 bool evolveGame(Game* p_game, uint64_t p_sensors)
 //-----------------------------------------------------------------------------
 {
@@ -399,7 +441,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
                 if ((WKing == p_game->state.removed_1.piece) && (2 == diff)) {
                     // King replaced two cells away on the same row: player is castling (1/3)
-                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
+                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false, false};
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
@@ -407,11 +449,19 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 } else {
                     // Player has played
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false};
+                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false, false};
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
                     p_game->state.status          = otherPlayer | bits::ToPlay;
-                    lastMovePtr->check            = isCheck(p_game);
+
+                    // Check for promotion
+                    if (true == isPromotion(lastMovePtr))
+                    {
+                        lastMovePtr->promotion = true;
+                        p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
+                    }
+
+                    lastMovePtr->check = isCheck(p_game);
                     p_game->moves++;
                     return true;
                 }
@@ -440,12 +490,12 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 // Check which piece has been removed first (capturing piece or captured piece)
                 if (true == isPlayerColor(p_game->state.removed_1.piece)) {
                     // The capturing piece was removed first
-                    *lastMovePtr               = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true, false};
+                    *lastMovePtr               = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true, false, false};
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                 } else if (true == isOtherPlayerColor(p_game->state.removed_1.piece)) {
                     // The captured piece was removed first
                     p_game->board[indexPlaced] = p_game->state.removed_2.piece;
-                    *lastMovePtr               = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, false, false};
+                    *lastMovePtr               = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, false, false, false};
                 }
 
                 p_game->state.removed_1.index = NULL_INDEX;
@@ -453,6 +503,14 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->state.removed_2.index = NULL_INDEX;
                 p_game->state.removed_2.piece = Empty;
                 p_game->state.status          = otherPlayer | bits::ToPlay;
+
+                // Check for promotion
+                if (true == isPromotion(lastMovePtr))
+                {
+                    lastMovePtr->promotion = true;
+                    p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
+                }
+
                 lastMovePtr->check            = isCheck(p_game);
                 p_game->moves++;
                 return true;
@@ -465,7 +523,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
         break;
     }
 
-    // ========================= IS CAPTURING
+    // ========================= IS CASTLING
     case bits::Castling: {
         if (NULL_INDEX != indexRemoved) {
             // Player is castling (2/3)
@@ -557,6 +615,11 @@ const char* getMoveStr(Move p_move)
         if (p_move.start == 2 + p_move.end) {
             std::memcpy(msg, CastlingMsg, i = 5);
         }
+    }
+
+    if (p_move.promotion) {
+        msg[i++] = '=';
+        msg[i++] = 'Q';
     }
 
     if (p_move.check)

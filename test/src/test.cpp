@@ -16,7 +16,7 @@ int main()
     printGame(&game);
 
     // The sensors status are stored in a 64-bits variable: b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1
-    SensorUpdate sensors[25] = {
+    SensorUpdate sensors[56] = {
         {Still,  "__"},
         {Remove, "e2"},
         {Place,  "e2"}, // "undo" move
@@ -42,6 +42,37 @@ int main()
         {Place,  "g1"},
         {Remove, "h1"},
         {Place,  "f1"}, // Castling (end)
+        {Remove, "f6"},
+        {Place, "g4"},
+        {Remove, "a2"},
+        {Place, "a3"},
+        {Remove, "g4"},
+        {Remove, "h2"},
+        {Place, "h2"},
+        {Remove, "a3"},
+        {Place, "a4"},
+        {Remove, "h2"},
+        {Place, "g4"},
+        {Remove, "a4"},
+        {Place, "a5"},
+        {Remove, "h7"},
+        {Place, "h5"},
+        {Remove, "a1"},
+        {Place, "a2"}, // Stupid rook move to hold white position
+        {Remove, "h5"},
+        {Place, "h4"},
+        {Remove, "a2"},
+        {Place, "a1"}, // Stupid rook move to hold white position
+        {Remove, "h4"},
+        {Place, "h3"},
+        {Remove, "a1"},
+        {Place, "a2"}, // Stupid rook move to hold white position
+        {Remove, "h3"},
+        {Place, "h2"},
+        {Remove, "a2"},
+        {Place, "a1"}, // Stupid rook move to hold white position
+        {Remove, "h2"},
+        {Place, "h1"}, // Promotion and checkmate!
     };
 
     uint64_t sensorsState = DEFAULT_SENSORS_STATE;
