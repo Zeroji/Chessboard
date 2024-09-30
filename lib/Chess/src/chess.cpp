@@ -1,4 +1,4 @@
-#include "../include/chess.h"
+#include "chess.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -193,7 +193,7 @@ int writeToFEN(Game* p_game, char* p_buffer)
     const char playerToMove  = (p_game->state.status & bits::ColorMask) == bits::White ? 'w' : 'b';
     const int fullMoveNumber = (p_game->moves / 2) + 1;
 
-    int ret = sprintf(&p_buffer[index], " %c - %s 0 %d", playerToMove, /* castling not supported, */ enPassantTarget, /* half moves not supported, */ fullMoveNumber);
+    int ret = sprintf(&p_buffer[index], " %c KQkq %s 0 %d", playerToMove, /* castling not supported, */ enPassantTarget, /* half moves not supported, */ fullMoveNumber);
     if (ret <= 0) {
         LOG_INDEX("Error while writing FEN with sprintf:", ret);
         return 0;

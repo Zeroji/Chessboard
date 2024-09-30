@@ -2,8 +2,8 @@
 #include <LiquidCrystal.h>
 #include <U8g2lib.h>
 
-#include "chess.h"
-#include "hardware.h"
+#include <chess.h>
+#include <hardware.h>
 
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN,
                   PIN_LCD_D0, PIN_LCD_D1, PIN_LCD_D2, PIN_LCD_D3);
