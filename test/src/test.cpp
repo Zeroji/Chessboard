@@ -12,6 +12,9 @@ int main()
     initializeGame(&game, DEFAULT_SENSORS_STATE);
     printf("Game initialized\n");
 
+    char fenBuffer[96];
+    writeToFEN(&game, fenBuffer);
+    printf("Initial FEN: %s\n", fenBuffer);
     printf("Initial board status:\n");
     printGame(&game);
 
@@ -57,6 +60,9 @@ int main()
             printGame(&game);
         }
     }
+
+    writeToFEN(&game, fenBuffer);
+    printf("Final FEN: %s\n", fenBuffer);
 
     return 0;
 }

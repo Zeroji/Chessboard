@@ -82,37 +82,205 @@ void initializeGame(Game* p_game, uint64_t p_mask)
 }
 
 //-----------------------------------------------------------------------------
-const char* getPieceStr(EPiece p_piece)
+void initializeFromFEN(Game* p_game, const char* p_fen)
+//-----------------------------------------------------------------------------
+{
+    if (NULL == p_game) {
+        LOG("Unable to initialize null game");
+        return;
+    }
+
+    // Game state
+    p_game->state.status          = bits::Draw | bits::Finished;
+    p_game->state.removed_1.index = NULL_INDEX;
+    p_game->state.removed_1.piece = Empty;
+    p_game->state.removed_2.index = NULL_INDEX;
+    p_game->state.removed_2.piece = Empty;
+    p_game->state.en_passant      = NULL_INDEX;
+    p_game->lastMoveB.piece       = Empty;
+    p_game->lastMoveW.piece       = Empty;
+    p_game->moves                 = 0;
+
+    // Read board (first part of FEN)
+    uint8_t rank = 7;
+    uint8_t file = 0;
+
+    int index = 0;
+    while (rank > 0 || file < 8) {
+        char c = p_fen[index++];
+        if (c == 0) {
+            LOG_INDEX("Unexpected end of FEN notation at", index);
+            return;
+        } else if (c == '/') {
+            if (file < 8) {
+                LOG_INDEX("Unexpected / in FEN notation at", index);
+            }
+            rank--;
+            file = 0;
+        } else if (c >= '1' && c <= '8') {
+            const uint8_t emptySquareCount = (c - '0');
+            for (uint8_t i = 0; i < emptySquareCount; i++) {
+                p_game->board[rank * 8 + file] = EPiece::Empty;
+                file++;
+            }
+        } else {
+            const EPiece piece = charToPiece(c);
+            if (piece == EPiece::Empty) {
+                LOG_INDEX("Unexpected character in FEN notation at", index);
+            } else {
+                p_game->board[rank * 8 + file] = piece;
+                file++;
+            }
+        }
+    }
+
+    // Read the rest of FEN with sscanf
+    char playerToMove;
+    char castlingRights[5]; // not supported
+    char enPassantTarget[3];
+    int halfmoveClock; // not supported
+    int fullMoveNumber;
+
+    if (5 != sscanf(&p_fen[index], " %c%s%s%d%d", &playerToMove, castlingRights, enPassantTarget, &halfmoveClock, &fullMoveNumber)) {
+        LOG_INDEX("sscanf failed to parse FEN remainder starting at", index);
+        return;
+    }
+
+    if (playerToMove == 'w') {
+        p_game->state.status = bits::White | bits::ToPlay;
+    } else if (playerToMove == 'b') {
+        p_game->state.status = bits::Black | bits::ToPlay;
+    }
+
+    p_game->state.en_passant = getSquareFromStr(enPassantTarget);
+    p_game->moves            = (fullMoveNumber - 1) * 2 + (playerToMove == 'b');
+}
+
+//-----------------------------------------------------------------------------
+int writeToFEN(Game* p_game, char* p_buffer)
+//-----------------------------------------------------------------------------
+{
+    if (p_game == nullptr || p_buffer == nullptr)
+        return 0;
+
+    int index = 0;
+    for (int8_t rank = 7; rank >= 0; rank--) {
+        bool wasEmpty = false;
+        for (uint8_t file = 0; file < 8; file++) {
+            const EPiece piece = p_game->board[rank * 8 + file];
+            if (piece == EPiece::Empty) {
+                if (wasEmpty) {
+                    // Increment the previously written digit
+                    p_buffer[index - 1]++;
+                } else {
+                    // Write a new digit
+                    p_buffer[index++] = '1';
+                    wasEmpty          = true;
+                }
+            } else {
+                p_buffer[index++] = getPieceChar(piece);
+                wasEmpty          = false;
+            }
+        }
+
+        if (rank)
+            p_buffer[index++] = '/';
+    }
+
+    char enPassantTarget[3] = "-\0"; // '-' 0 0
+    writeSquareToStr(p_game->state.en_passant, enPassantTarget);
+
+    const char playerToMove  = (p_game->state.status & bits::ColorMask) == bits::White ? 'w' : 'b';
+    const int fullMoveNumber = (p_game->moves / 2) + 1;
+
+    int ret = sprintf(&p_buffer[index], " %c - %s 0 %d", playerToMove, /* castling not supported, */ enPassantTarget, /* half moves not supported, */ fullMoveNumber);
+    if (ret <= 0) {
+        LOG_INDEX("Error while writing FEN with sprintf:", ret);
+        return 0;
+    }
+    return index + ret; // chars written
+}
+
+//-----------------------------------------------------------------------------
+char getPieceChar(EPiece p_piece)
 //-----------------------------------------------------------------------------
 {
     switch (p_piece) {
     case WPawn:
-        return "wP";
+        return 'P';
     case WKnight:
-        return "wN";
+        return 'N';
     case WBishop:
-        return "wB";
+        return 'B';
     case WRook:
-        return "wR";
+        return 'R';
     case WQueen:
-        return "wQ";
+        return 'Q';
     case WKing:
-        return "wK";
+        return 'K';
     case BPawn:
-        return "bP";
+        return 'p';
     case BKnight:
-        return "bN";
+        return 'n';
     case BBishop:
-        return "bB";
+        return 'b';
     case BRook:
-        return "bR";
+        return 'r';
     case BQueen:
-        return "bQ";
+        return 'q';
     case BKing:
-        return "bK";
+        return 'k';
     default:
-        return "  ";
+        return ' ';
     };
+}
+
+//-----------------------------------------------------------------------------
+EPiece charToPiece(char p_char)
+//-----------------------------------------------------------------------------
+{
+    bool isBlack  = p_char & 0b00100000; // lowercase bit
+    uint8_t color = isBlack ? bits::Black : bits::White;
+    switch (p_char & 0b11011111) {
+    case 'P':
+        return (EPiece)(color | bits::Pawn);
+    case 'N':
+        return (EPiece)(color | bits::Knight);
+    case 'B':
+        return (EPiece)(color | bits::Bishop);
+    case 'R':
+        return (EPiece)(color | bits::Rook);
+    case 'Q':
+        return (EPiece)(color | bits::Queen);
+    case 'K':
+        return (EPiece)(color | bits::King);
+    }
+    return EPiece::Empty;
+}
+
+//-----------------------------------------------------------------------------
+uint8_t getSquareFromStr(const char* p_square)
+//-----------------------------------------------------------------------------
+{
+    if (p_square == nullptr)
+        return NULL_INDEX;
+
+    const uint8_t file = ((uint8_t)(p_square[0]) & 0b11011111) - (uint8_t)('A');
+    const uint8_t rank = (uint8_t)(p_square[1]) - (uint8_t)('1');
+    if (file < 8 && rank < 8)
+        return rank * 8 + file;
+    return NULL_INDEX;
+}
+
+//-----------------------------------------------------------------------------
+void writeSquareToStr(uint8_t p_index, char* p_buffer)
+//-----------------------------------------------------------------------------
+{
+    if (p_index >= NULL_INDEX || p_buffer == nullptr)
+        return;
+    const uint8_t rank = p_index / 8, file = p_index % 8;
+    p_buffer[0] = file + 'a';
+    p_buffer[1] = rank + '1';
 }
 
 //-----------------------------------------------------------------------------
@@ -162,26 +330,26 @@ void printGame(Game* p_game)
         return;
     }
 
-    LOG("  +----+----+----+----+----+----+----+----+");
+    LOG("  +---+---+---+---+---+---+---+---+");
     for (uint8_t i = 0; i < 8; i++) {
 #ifdef HAS_PRINTF
         printf("%d ", (8 - i));
         for (uint8_t j = 0; j < 8; j++) {
-            printf("| %s ", getPieceStr(p_game->board[8 * (8 - i - 1) + j]));
+            printf("| %c ", getPieceChar(p_game->board[8 * (8 - i - 1) + j]));
         }
 #else
         Serial.print(8 - i);
         for (uint8_t j = 0; j < 8; j++) {
             Serial.print(" | ");
-            Serial.print(getPieceStr(p_game->board[8 * (8 - i - 1) + j]));
+            Serial.print(getPieceChar(p_game->board[8 * (8 - i - 1) + j]));
         }
         Serial.print(' ');
 #endif
 
-        LOG("|\n  +----+----+----+----+----+----+----+----+");
+        LOG("|\n  +---+---+---+---+---+---+---+---+");
     }
 
-    LOG("   a    b    c    d    e    f    g    h");
+    LOG("    a   b   c   d   e   f   g   h");
 #ifdef HAS_PRINTF
     printf("[%s, %d move%s]\n", getStatusStr(p_game->state.status), p_game->moves, (p_game->moves > 1 ? "s" : ""));
 #else

@@ -116,9 +116,14 @@ typedef struct {
 } Game;
 
 void initializeGame(Game* p_game, uint64_t p_mask /* = 0xffff00000000ffffuLL */);
+void initializeFromFEN(Game* p_game, const char* p_fen);
+int writeToFEN(Game* p_game, char* p_buffer);
 bool isWhite(EPiece p_piece);
 bool isBlack(EPiece p_piece);
-const char* getPieceStr(EPiece p_piece);
+char getPieceChar(EPiece p_piece);
+EPiece charToPiece(char p_char);
+uint8_t getSquareFromStr(const char* p_square);
+void writeSquareToStr(uint8_t p_index, char* p_buffer);
 const char* getStatusStr(uint8_t p_status);
 const char* getMoveStr(Move p_move);
 void printGame(Game* p_game);
