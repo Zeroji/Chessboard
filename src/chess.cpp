@@ -465,7 +465,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 LOG_INDEX("-> Piece is placed", indexPlaced);
 
                 uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
-                if ((WKing == p_game->state.removed_1.piece) && (2 == diff)) {
+                if ((true == isKing(p_game->state.removed_1.piece)) && (2 == diff)) {
                     // King replaced two cells away on the same row: player is castling (1/3)
                     *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false, false};
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
