@@ -2,41 +2,51 @@
 
 #include <stdio.h>
 
-const uint64_t DEFAULT_SENSORS_STATE = 18446462598732906495U; // (1111111111111111000000000000000000000000000000001111111111111111)
+const uint64_t DEFAULT_SENSORS_STATE = 0xFFFF00000000FFFFuLL; // (11111111 11111111 00000000 00000000 00000000 00000000 11111111 11111111)
 
 //-----------------------------------------------------------------------------
-uint64_t updateSensors(uint64_t p_state, SensorUpdate p_update)
+uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr)
 //-----------------------------------------------------------------------------
 {
-    if (Still == p_update.action) {
+    const char command = *p_actionPtr++;
+
+    switch (command) {
+    case 0:
+    case '_':
         return p_state;
-    }
+    case '+':
+    case '-': {
+        uint8_t col = ((uint8_t)(*p_actionPtr++) & 0b11011111) - (uint8_t)('A'); // clear lowercase bit then move to 0-7
+        if (col >= 8) {
+            printf("Unable to update sensors with invalid cell col: %c\n", *(p_actionPtr - 1));
+            return p_state;
+        }
 
-    if (NULL == p_update.cell) {
-        printf("Unable to update sensors with null cell\n");
-        return p_state;
-    }
+        uint8_t row = (uint8_t)(*p_actionPtr++) - (uint8_t)('1');
+        if (row >= 8) {
+            printf("Unable to update sensors with invalid cell row: %c\n", *(p_actionPtr - 1));
+            return p_state;
+        }
 
-    uint8_t col = (uint8_t)(p_update.cell[0]) - (uint8_t)('a');
-    if (col >= 8) {
-        printf("Unable to update sensors with invalid cell col: %c\n", p_update.cell[0]);
-        return p_state;
-    }
-
-    uint8_t row = (uint8_t)(p_update.cell[1]) - (uint8_t)('1');
-    if (row >= 8) {
-        printf("Unable to update sensors with invalid cell row: %c\n", p_update.cell[1]);
-        return p_state;
-    }
-
-    uint8_t index = col + 8 * row;
-
-    if (Place == p_update.action) {
-        return p_state | ((uint64_t)0x1 << index);
-    } else if (Remove == p_update.action) {
+        uint8_t index = col + 8 * row;
+        if (command == '+')
+            return p_state | ((uint64_t)0x1 << index);
+        // else: command == '-'
         return p_state & ~((uint64_t)0x1 << index);
     }
-
-    printf("Unable to update sensors with invalid action: %d\n", p_update.action);
-    return p_state;
+    case '#':
+        // Skip all characters until \0 (return) or \n (recurse)
+        while (*p_actionPtr++ != '\n')
+            if (*p_actionPtr == 0)
+                return p_state;
+        [[fallthrough]];
+    case ' ':
+    case '\t':
+    case '\r':
+    case '\n':
+        return updateSensors(p_state, p_actionPtr);
+    default:
+        printf("Unable to update sensors with invalid action: %c\n", command);
+        return p_state;
+    }
 }

@@ -16,69 +16,40 @@ int main()
     printGame(&game);
 
     // The sensors status are stored in a 64-bits variable: b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1
-    SensorUpdate sensors[56] = {
-        {Still,  "__"},
-        {Remove, "e2"},
-        {Place,  "e2"}, // "undo" move
-        {Remove, "e2"},
-        {Place,  "e4"},
-        {Remove, "d7"},
-        {Place,  "d5"},
-        {Remove, "d5"},
-        {Remove, "e4"},
-        {Place,  "d5"}, // Capture (captured color removed first)
-        {Remove, "d8"},
-        {Remove, "d5"},
-        {Place,  "d5"}, // Capture (playing color removed first)
-        {Remove, "g1"},
-        {Place,  "f3"},
-        {Remove, "b8"},
-        {Place,  "c6"},
-        {Remove, "f1"},
-        {Place,  "d3"},
-        {Remove, "g8"},
-        {Place,  "f6"},
-        {Remove, "e1"}, // Castling (start)
-        {Place,  "g1"},
-        {Remove, "h1"},
-        {Place,  "f1"}, // Castling (end)
-        {Remove, "f6"},
-        {Place, "g4"},
-        {Remove, "a2"},
-        {Place, "a3"},
-        {Remove, "g4"},
-        {Remove, "h2"},
-        {Place, "h2"},
-        {Remove, "a3"},
-        {Place, "a4"},
-        {Remove, "h2"},
-        {Place, "g4"},
-        {Remove, "a4"},
-        {Place, "a5"},
-        {Remove, "h7"},
-        {Place, "h5"},
-        {Remove, "a1"},
-        {Place, "a2"}, // Stupid rook move to hold white position
-        {Remove, "h5"},
-        {Place, "h4"},
-        {Remove, "a2"},
-        {Place, "a1"}, // Stupid rook move to hold white position
-        {Remove, "h4"},
-        {Place, "h3"},
-        {Remove, "a1"},
-        {Place, "a2"}, // Stupid rook move to hold white position
-        {Remove, "h3"},
-        {Place, "h2"},
-        {Remove, "a2"},
-        {Place, "a1"}, // Stupid rook move to hold white position
-        {Remove, "h2"},
-        {Place, "h1"}, // Promotion and checkmate!
+    const char* testString = {
+        "_"
+        "# This is a comment (-d2 +d4 is not parsed)\n"
+        "-e2 +e2" // "undo" move
+        "-e2 +e4"
+        "-d7 +d5"
+        "-d5 -e4 +d5" // Capture (captured color removed first)
+        "-d8 -d5 +d5" // Capture (playing color removed first)
+        "-g1 +f3"
+        "-b8 +c6"
+        "-f1 +d3"
+        "-g8 +f6"
+        "-e1 +g1 -h1 +f1" // Castling
+        "-f6 +g4"
+        "-a2 +a3"
+        "-g4 -h2 +h2"
+        "-a3 +a4"
+        "-h2 +g4"
+        "-a4 +a5"
+        "-h7 +h5"
+        "-a1 +a2" // Stupid rook move to hold white position
+        "-h5 +h4"
+        "-a2 +a1" // Stupid rook move to hold white position
+        "-h4 +h3"
+        "-a1 +a2" // Stupid rook move to hold white position
+        "-h3 +h2"
+        "-a2 +a1" // Stupid rook move to hold white position
+        "-h2 +h1" // Promotion and checkmate!
     };
 
     uint64_t sensorsState = DEFAULT_SENSORS_STATE;
-    for (uint8_t i = 0; i < sizeof(sensors) / sizeof(sensors[0]); i++) {
+    for (const char* ptr = testString; *ptr != 0;) {
         printf("Checking sensors...\n");
-        sensorsState = updateSensors(sensorsState, sensors[i]);
+        sensorsState = updateSensors(sensorsState, ptr);
 
         bool played = evolveGame(&game, sensorsState);
         printf("\tThe state is: %s\n", getStatusStr(game.state.status));
