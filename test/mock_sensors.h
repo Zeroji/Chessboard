@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-
-extern const uint64_t DEFAULT_SENSORS_STATE;
+#include <chess.h>
 
 uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr);
+uint64_t extractSensorsState(Game* p_game);

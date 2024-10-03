@@ -1,8 +1,6 @@
-#include "sensors.h"
+#include "mock_sensors.h"
 
 #include <stdio.h>
-
-const uint64_t DEFAULT_SENSORS_STATE = 0xFFFF00000000FFFFuLL; // (11111111 11111111 00000000 00000000 00000000 00000000 11111111 11111111)
 
 //-----------------------------------------------------------------------------
 uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr)
@@ -16,6 +14,8 @@ uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr)
         return p_state;
     case '+':
     case '-': {
+        char letter = *(p_actionPtr);
+        char number = *(p_actionPtr+1);
         uint8_t col = ((uint8_t)(*p_actionPtr++) & 0b11011111) - (uint8_t)('A'); // clear lowercase bit then move to 0-7
         if (col >= 8) {
             printf("Unable to update sensors with invalid cell col: %c\n", *(p_actionPtr - 1));
@@ -29,9 +29,13 @@ uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr)
         }
 
         uint8_t index = col + 8 * row;
-        if (command == '+')
+
+        if (command == '+') {
+            printf("+%c%c\n", letter, number);
             return p_state | ((uint64_t)0x1 << index);
+        }
         // else: command == '-'
+        printf("-%c%c\n", letter, number);
         return p_state & ~((uint64_t)0x1 << index);
     }
     case '#':
@@ -49,4 +53,25 @@ uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr)
         printf("Unable to update sensors with invalid action: %c\n", command);
         return p_state;
     }
+}
+
+//-----------------------------------------------------------------------------
+uint64_t extractSensorsState(Game* p_game)
+//-----------------------------------------------------------------------------
+{
+    if (nullptr == p_game) {
+        printf("Unable to extract sensors state from null game\n");
+        return 0;
+    }
+
+    // EPiece board[64]; // a1, b1, c1..., a2, b2, c2...
+    // b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1
+    uint64_t state = 0;
+    for (uint8_t index = 0; index < 64; index++) {
+        if (EPiece::Empty != p_game->board[index]) {
+            state |= (1uLL << index);
+        }
+    }
+
+    return state;
 }

@@ -20,7 +20,8 @@
 #define LOG_INDEX(X, IDX) printf(X " (index %d)\n", IDX)
 #endif
 
-const uint8_t NULL_INDEX = 64;
+const uint64_t DEFAULT_SENSORS_STATE = 0xFFFF00000000FFFFuLL; // (11111111 11111111 00000000 00000000 00000000 00000000 11111111 11111111)
+const uint8_t NULL_INDEX             = 64;
 
 typedef struct {
     uint8_t square;

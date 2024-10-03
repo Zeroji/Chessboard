@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+extern const uint64_t DEFAULT_SENSORS_STATE;
+
 // Use bit masks to check attributes faster
 namespace bits {
 constexpr uint8_t ColorMask      = 0b00000001;
