@@ -11,4 +11,5 @@ void tearDown(void) {
 int main(int argc, char **argv) {
     RUN_MODULE(run_fen);
     RUN_MODULE(run_castling);
+    RUN_MODULE(run_promotion);
 }
