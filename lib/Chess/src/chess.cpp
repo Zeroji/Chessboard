@@ -22,6 +22,19 @@
 
 const uint8_t NULL_INDEX = 64;
 
+typedef struct {
+    uint8_t square;
+    uint8_t color;
+    uint8_t noColorPiece;
+} CastlingUpdate;
+
+static constexpr CastlingUpdate s_castlingUpdates[4] = {
+    {0 * 8 + 0 /* A1 */, bits::White, bits::Queen},
+    {0 * 8 + 7 /* A8 */, bits::White, bits::King},
+    {7 * 8 + 0 /* H1 */, bits::Black, bits::Queen},
+    {7 * 8 + 7 /* H8 */, bits::Black, bits::King}
+};
+
 //-----------------------------------------------------------------------------
 void initializeGame(Game* p_game, uint64_t p_mask)
 //-----------------------------------------------------------------------------
@@ -74,6 +87,10 @@ void initializeGame(Game* p_game, uint64_t p_mask)
     p_game->state.removed_2.index = NULL_INDEX;
     p_game->state.removed_2.piece = Empty;
     p_game->state.en_passant      = NULL_INDEX;
+    p_game->state.castlingK[bits::White] = true;
+    p_game->state.castlingQ[bits::White] = true;
+    p_game->state.castlingK[bits::Black] = true;
+    p_game->state.castlingQ[bits::Black] = true;
     p_game->lastMoveB.piece       = Empty;
     p_game->lastMoveW.piece       = Empty;
     p_game->moves                 = 0;
@@ -97,6 +114,10 @@ void initializeFromFEN(Game* p_game, const char* p_fen)
     p_game->state.removed_2.index = NULL_INDEX;
     p_game->state.removed_2.piece = Empty;
     p_game->state.en_passant      = NULL_INDEX;
+    p_game->state.castlingK[bits::White] = true;
+    p_game->state.castlingQ[bits::White] = true;
+    p_game->state.castlingK[bits::Black] = true;
+    p_game->state.castlingQ[bits::Black] = true;
     p_game->lastMoveB.piece       = Empty;
     p_game->lastMoveW.piece       = Empty;
     p_game->moves                 = 0;
@@ -136,7 +157,7 @@ void initializeFromFEN(Game* p_game, const char* p_fen)
 
     // Read the rest of FEN with sscanf
     char playerToMove;
-    char castlingRights[5]; // not supported
+    char castlingRights[5];
     char enPassantTarget[3];
     int halfmoveClock; // not supported
     int fullMoveNumber;
@@ -145,6 +166,12 @@ void initializeFromFEN(Game* p_game, const char* p_fen)
         LOG_INDEX("sscanf failed to parse FEN remainder starting at", index);
         return;
     }
+
+    size_t len = strlen(castlingRights);
+    p_game->state.castlingK[bits::White] = (strcspn(castlingRights, "K") != len);
+    p_game->state.castlingQ[bits::White] = (strcspn(castlingRights, "Q") != len);
+    p_game->state.castlingK[bits::Black] = (strcspn(castlingRights, "k") != len);
+    p_game->state.castlingQ[bits::Black] = (strcspn(castlingRights, "q") != len);
 
     if (playerToMove == 'w') {
         p_game->state.status = bits::White | bits::ToPlay;
@@ -187,13 +214,24 @@ int writeToFEN(Game* p_game, char* p_buffer)
             p_buffer[index++] = '/';
     }
 
+    char castlingStates[5] = "-\0"; // '-' 0 0 0 0
+    uint8_t castlingIndex = 0;
+    if (p_game->state.castlingK[bits::White])
+        castlingStates[castlingIndex++] = 'K';
+    if (p_game->state.castlingQ[bits::White])
+        castlingStates[castlingIndex++] = 'Q';
+    if (p_game->state.castlingK[bits::Black])
+        castlingStates[castlingIndex++] = 'k';
+    if (p_game->state.castlingQ[bits::Black])
+        castlingStates[castlingIndex++] = 'q';
+
     char enPassantTarget[3] = "-\0"; // '-' 0 0
     writeSquareToStr(p_game->state.en_passant, enPassantTarget);
 
     const char playerToMove  = (p_game->state.status & bits::ColorMask) == bits::White ? 'w' : 'b';
     const int fullMoveNumber = (p_game->moves / 2) + 1;
 
-    int ret = sprintf(&p_buffer[index], " %c KQkq %s 0 %d", playerToMove, /* castling not supported, */ enPassantTarget, /* half moves not supported, */ fullMoveNumber);
+    int ret = sprintf(&p_buffer[index], " %c %s %s 0 %d", playerToMove, castlingStates, enPassantTarget, /* half moves not supported, */ fullMoveNumber);
     if (ret <= 0) {
         LOG_INDEX("Error while writing FEN with sprintf:", ret);
         return 0;
@@ -538,6 +576,49 @@ bool isPromotion(Move* p_move)
 }
 
 //-----------------------------------------------------------------------------
+void updateCastlingAvailability(Game* p_game)
+//-----------------------------------------------------------------------------
+{
+    if (nullptr == p_game) {
+        LOG("Unable to update castling availability for null game");
+        return;
+    }
+
+    if (bits::ToPlay != (p_game->state.status & bits::MoveMask)) {
+        // Nothing changed since last castling update because no move was played ;)
+        return;
+    }
+
+    Move* lastMove;
+    uint8_t lastMoveColor;
+    if (bits::White == (p_game->state.status & bits::ColorMask)) {
+        lastMove = &p_game->lastMoveB;
+        lastMoveColor = bits::Black;
+    } else {
+        lastMove = &p_game->lastMoveW;
+        lastMoveColor = bits::White;
+    }
+
+    if (isKing(lastMove->piece)) {
+        p_game->state.castlingK[lastMoveColor] = false;
+        p_game->state.castlingQ[lastMoveColor] = false;
+        return;
+    }
+
+    for(uint8_t i = 0; i < 4; i++ ){
+        CastlingUpdate cu = s_castlingUpdates[i];
+        // If any piece moved from or to an initial rook square, castling is not allowed anymore on this side
+        if ((lastMove->start == cu.square) || (lastMove->end == cu.square)) {
+            if (bits::King == cu.noColorPiece) {
+                p_game->state.castlingK[cu.color] = false;
+            } else {
+                p_game->state.castlingQ[cu.color] = false;
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
 bool evolveGame(Game* p_game, uint64_t p_sensors)
 //-----------------------------------------------------------------------------
 {
@@ -671,6 +752,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
                     lastMovePtr->check = isCheck(p_game);
                     p_game->moves++;
+                    updateCastlingAvailability(p_game);
                     return true;
                 }
             }
@@ -721,6 +803,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
 
                 lastMovePtr->check = isCheck(p_game);
                 p_game->moves++;
+                updateCastlingAvailability(p_game);
                 return true;
             }
         }
@@ -742,6 +825,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             p_game->state.en_passant    = NULL_INDEX;
             p_game->state.status        = otherPlayer | bits::ToPlay;
             p_game->moves++;
+            // updateCastlingAvailability(p_game); // -> en-passant can't change castling availability
             return true;
         } else {
             LOG_INDEX("-> Wrong piece removed during en passant!", indexRemoved);
@@ -774,8 +858,9 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->state.removed_1.piece = Empty;
                 p_game->state.en_passant      = NULL_INDEX;
                 p_game->state.status          = otherPlayer | bits::ToPlay;
-                lastMovePtr->check            = isCheck(p_game); // Rarest move ever if true :)
+                lastMovePtr->check            = isCheck(p_game); // Rarest move ever if checkmate :)
                 p_game->moves++;
+                updateCastlingAvailability(p_game);
                 return true;
             }
         }

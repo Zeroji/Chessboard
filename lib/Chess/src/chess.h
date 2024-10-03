@@ -5,11 +5,11 @@
 
 // Use bit masks to check attributes faster
 namespace bits {
-constexpr uint8_t ColorMask      = 0b10000000;
-constexpr uint8_t TypeMask       = 0b00000111;
-constexpr uint8_t LongRangeFlag  = 0b00000100;
-constexpr uint8_t DiagonalFlag   = 0b00000010;
-constexpr uint8_t OrthogonalFlag = 0b00000001;
+constexpr uint8_t ColorMask      = 0b00000001;
+constexpr uint8_t TypeMask       = 0b00001110;
+constexpr uint8_t LongRangeFlag  = 0b00001000;
+constexpr uint8_t DiagonalFlag   = 0b00000100;
+constexpr uint8_t OrthogonalFlag = 0b00000010;
 
 constexpr uint8_t Pawn   = DiagonalFlag;
 constexpr uint8_t King   = DiagonalFlag | OrthogonalFlag;
@@ -20,14 +20,14 @@ constexpr uint8_t Queen  = LongRangeFlag | DiagonalFlag | OrthogonalFlag;
 
 constexpr uint8_t White = 0, Black = ColorMask;
 
-constexpr uint8_t MoveMask  = 0b00111111;
-constexpr uint8_t ToPlay    = 0b00000001;
-constexpr uint8_t Playing   = 0b00000010;
-constexpr uint8_t Capturing = 0b00000100;
-constexpr uint8_t EnPassant = 0b00000101;
-constexpr uint8_t Castling  = 0b00001000;
-constexpr uint8_t Finished  = 0b00010000;
-constexpr uint8_t Draw      = 0b00100000;
+constexpr uint8_t MoveMask  = 0b01111110;
+constexpr uint8_t ToPlay    = 0b00000010;
+constexpr uint8_t Playing   = 0b00000100;
+constexpr uint8_t Capturing = 0b00001000;
+constexpr uint8_t EnPassant = 0b00001010;
+constexpr uint8_t Castling  = 0b00010000;
+constexpr uint8_t Finished  = 0b00100000;
+constexpr uint8_t Draw      = 0b01000000;
 } // namespace bits
 
 typedef enum {
@@ -96,6 +96,8 @@ typedef struct {
     Removed removed_2;
     uint8_t en_passant;
     uint8_t status;
+    bool castlingK[2];
+    bool castlingQ[2];
 } State;
 
 typedef struct {
