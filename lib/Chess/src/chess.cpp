@@ -82,19 +82,20 @@ void initializeGame(Game* p_game, uint64_t p_mask)
             p_game->board[i] = Empty;
 
     // Game state
-    p_game->state.status          = bits::White | bits::ToPlay;
-    p_game->state.removed_1.index = NULL_INDEX;
-    p_game->state.removed_1.piece = Empty;
-    p_game->state.removed_2.index = NULL_INDEX;
-    p_game->state.removed_2.piece = Empty;
-    p_game->state.en_passant      = NULL_INDEX;
+    p_game->state.status                 = bits::White | bits::ToPlay;
+    p_game->state.removed_1.index        = NULL_INDEX;
+    p_game->state.removed_1.piece        = Empty;
+    p_game->state.removed_2.index        = NULL_INDEX;
+    p_game->state.removed_2.piece        = Empty;
+    p_game->state.en_passant             = NULL_INDEX;
     p_game->state.castlingK[bits::White] = true;
     p_game->state.castlingQ[bits::White] = true;
     p_game->state.castlingK[bits::Black] = true;
     p_game->state.castlingQ[bits::Black] = true;
-    p_game->lastMoveB.piece       = Empty;
-    p_game->lastMoveW.piece       = Empty;
-    p_game->moves                 = 0;
+    p_game->lastMoveB.piece              = Empty;
+    p_game->lastMoveW.piece              = Empty;
+    p_game->fullmoveClock                = 1;
+    p_game->halfmoveClock                = 0;
 
     LOG("Game has been initialized");
 }
@@ -109,19 +110,20 @@ void initializeFromFEN(Game* p_game, const char* p_fen)
     }
 
     // Game state
-    p_game->state.status          = bits::Draw | bits::Finished;
-    p_game->state.removed_1.index = NULL_INDEX;
-    p_game->state.removed_1.piece = Empty;
-    p_game->state.removed_2.index = NULL_INDEX;
-    p_game->state.removed_2.piece = Empty;
-    p_game->state.en_passant      = NULL_INDEX;
+    p_game->state.status                 = bits::Draw | bits::Finished;
+    p_game->state.removed_1.index        = NULL_INDEX;
+    p_game->state.removed_1.piece        = Empty;
+    p_game->state.removed_2.index        = NULL_INDEX;
+    p_game->state.removed_2.piece        = Empty;
+    p_game->state.en_passant             = NULL_INDEX;
     p_game->state.castlingK[bits::White] = true;
     p_game->state.castlingQ[bits::White] = true;
     p_game->state.castlingK[bits::Black] = true;
     p_game->state.castlingQ[bits::Black] = true;
-    p_game->lastMoveB.piece       = Empty;
-    p_game->lastMoveW.piece       = Empty;
-    p_game->moves                 = 0;
+    p_game->lastMoveB.piece              = Empty;
+    p_game->lastMoveW.piece              = Empty;
+    p_game->fullmoveClock                = 1;
+    p_game->halfmoveClock                = 0;
 
     // Read board (first part of FEN)
     uint8_t rank = 7;
@@ -160,15 +162,15 @@ void initializeFromFEN(Game* p_game, const char* p_fen)
     char playerToMove;
     char castlingRights[5];
     char enPassantTarget[3];
-    int halfmoveClock; // not supported
-    int fullMoveNumber;
+    int halfmoveClock;
+    int fullmoveClock;
 
-    if (5 != sscanf(&p_fen[index], " %c%s%s%d%d", &playerToMove, castlingRights, enPassantTarget, &halfmoveClock, &fullMoveNumber)) {
+    if (5 != sscanf(&p_fen[index], " %c%s%s%d%d", &playerToMove, castlingRights, enPassantTarget, &halfmoveClock, &fullmoveClock)) {
         LOG_INDEX("sscanf failed to parse FEN remainder starting at", index);
         return;
     }
 
-    size_t len = strlen(castlingRights);
+    size_t len                           = strlen(castlingRights);
     p_game->state.castlingK[bits::White] = (strcspn(castlingRights, "K") != len);
     p_game->state.castlingQ[bits::White] = (strcspn(castlingRights, "Q") != len);
     p_game->state.castlingK[bits::Black] = (strcspn(castlingRights, "k") != len);
@@ -181,7 +183,8 @@ void initializeFromFEN(Game* p_game, const char* p_fen)
     }
 
     p_game->state.en_passant = getSquareFromStr(enPassantTarget);
-    p_game->moves            = (fullMoveNumber - 1) * 2 + (playerToMove == 'b');
+    p_game->fullmoveClock    = fullmoveClock;
+    p_game->halfmoveClock    = halfmoveClock;
 }
 
 //-----------------------------------------------------------------------------
@@ -230,9 +233,8 @@ int writeToFEN(Game* p_game, char* p_buffer)
     writeSquareToStr(p_game->state.en_passant, enPassantTarget);
 
     const char playerToMove  = (p_game->state.status & bits::ColorMask) == bits::White ? 'w' : 'b';
-    const int fullMoveNumber = (p_game->moves / 2) + 1;
 
-    int ret = sprintf(&p_buffer[index], " %c %s %s 0 %d", playerToMove, castlingStates, enPassantTarget, /* half moves not supported, */ fullMoveNumber);
+    int ret = sprintf(&p_buffer[index], " %c %s %s %d %d", playerToMove, castlingStates, enPassantTarget, p_game->halfmoveClock, p_game->fullmoveClock);
     if (ret <= 0) {
         LOG_INDEX("Error while writing FEN with sprintf:", ret);
         return 0;
@@ -390,13 +392,11 @@ void printGame(Game* p_game)
 
     LOG("    a   b   c   d   e   f   g   h");
 #ifdef HAS_PRINTF
-    printf("[%s, %d move%s]\n", getStatusStr(p_game->state.status), p_game->moves, (p_game->moves > 1 ? "s" : ""));
+    printf("[%s]\n", getStatusStr(p_game->state.status));
 #else
     Serial.print('[');
     Serial.print(getStatusStr(p_game->state.status));
-    Serial.print(", ");
-    Serial.print(p_game->moves);
-    Serial.print("moves]\n");
+    Serial.print("]\n");
 #endif
 
     if ((p_game->state.status & bits::MoveMask) == bits::ToPlay) {
@@ -763,8 +763,15 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                         p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
                     }
 
-                    lastMovePtr->check = isCheck(p_game);
-                    p_game->moves++;
+                    lastMovePtr->check     = isCheck(p_game);
+                    p_game->fullmoveClock += (player == bits::Black ? 1 : 0);
+
+                    if (isPawn(lastMovePtr->piece)) {
+                        p_game->halfmoveClock = 0;
+                    } else {
+                        p_game->halfmoveClock++;
+                    }
+
                     updateCastlingAvailability(p_game);
                     return true;
                 }
@@ -814,8 +821,9 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
                 }
 
-                lastMovePtr->check = isCheck(p_game);
-                p_game->moves++;
+                lastMovePtr->check     = isCheck(p_game);
+                p_game->fullmoveClock += (player == bits::Black ? 1 : 0);
+                p_game->halfmoveClock  = 0;
                 updateCastlingAvailability(p_game);
                 return true;
             }
@@ -837,7 +845,8 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             lastMovePtr->check          = isCheck(p_game);
             p_game->state.en_passant    = NULL_INDEX;
             p_game->state.status        = otherPlayer | bits::ToPlay;
-            p_game->moves++;
+            p_game->fullmoveClock      += (player == bits::Black ? 1 : 0);
+            p_game->halfmoveClock       = 0;
             // updateCastlingAvailability(p_game); // -> en-passant can't change castling availability
             return true;
         } else {
@@ -872,7 +881,8 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->state.en_passant      = NULL_INDEX;
                 p_game->state.status          = otherPlayer | bits::ToPlay;
                 lastMovePtr->check            = isCheck(p_game); // Rarest move ever if checkmate :)
-                p_game->moves++;
+                p_game->fullmoveClock        += (player == bits::Black ? 1 : 0);
+                p_game->halfmoveClock++;
                 updateCastlingAvailability(p_game);
                 return true;
             }

@@ -116,7 +116,8 @@ typedef struct {
     State state;
     Move lastMoveW;
     Move lastMoveB;
-    uint8_t moves;
+    uint8_t fullmoveClock;
+    uint8_t halfmoveClock;
 } Game;
 
 void initializeGame(Game* p_game, uint64_t p_mask /* = 0xffff00000000ffffuLL */);

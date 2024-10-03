@@ -33,20 +33,16 @@ void loop() {
 
     // Display moves on LCD screen
     lcd.setCursor(0, 0);
-    int moveCounter = game.moves / 2 + 1;
-    if (game.moves && (game.moves % 2 == 0) && (game.state.status != (bits::White | bits::ToPlay))) {
-        lcd.print(moveCounter + 1);
-        lcd.write(".              ");
-    } else {
-        lcd.print(moveCounter);
-        lcd.write(". ");
+    lcd.print(game.fullmoveClock);
+    lcd.write(". ");
+    if (game.state.status == (bits::White | bits::ToPlay)) {
         if (game.lastMoveW.piece != EPiece::Empty) {
             lcd.write(getMoveStr(game.lastMoveW));
-            if (((game.moves & 1) == 0) && (game.lastMoveB.piece != EPiece::Empty)) {
-                lcd.print(" ");
-                lcd.write(getMoveStr(game.lastMoveB));
-            }
+            lcd.write(" ");
+            lcd.write(getMoveStr(game.lastMoveB));
         }
+    } else if (game.state.status == (bits::Black | bits::ToPlay)) {
+        lcd.write(getMoveStr(game.lastMoveW));
         lcd.write("             ");
     }
     lcd.setCursor(0, 1);
