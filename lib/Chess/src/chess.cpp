@@ -842,7 +842,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
             p_game->state.removed_1.piece                = p_game->board[p_game->state.removed_1.index];
             p_game->board[p_game->state.removed_1.index] = Empty;
 
-            if (WRook != p_game->state.removed_1.piece) {
+            if (false == isRook(p_game->state.removed_1.piece)) {
                 LOG("-> Second piece removed during castling is not a rook!");
             }
         }
