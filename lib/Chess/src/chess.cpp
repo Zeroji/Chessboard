@@ -930,9 +930,11 @@ const char* getMoveStr(Move p_move)
     case bits::Rook:
         msg[i++] = 'R';
         break;
-    case bits::Pawn:
-        msg[i++] = 'a' + (p_move.start % 8);
+    case bits::Pawn: {
+        if (p_move.captured)
+            msg[i++] = 'a' + (p_move.start % 8);
         break;
+        }
     }
 
     if (p_move.captured)
