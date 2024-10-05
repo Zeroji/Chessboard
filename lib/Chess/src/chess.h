@@ -133,7 +133,8 @@ const char* getStatusStr(uint8_t p_status);
 const char* getMoveStr(Move p_move);
 void printGame(Game* p_game);
 bool isCheck(Game* p_game);
-bool isCheckmate(Game* p_game);
+bool isCheckmate(Game* p_game, bool p_isChecked = true);
+Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, bool p_returnOnFirst, uint8_t& p_size);
 
 // The sensors status are stored in a 64-bits variable: b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1
 bool evolveGame(Game* p_game, uint64_t p_sensors);
