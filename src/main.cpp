@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <LiquidCrystal.h>
-#include <U8g2lib.h>
+#include <U8x8lib.h>
 
 #include <chess.h>
 #include <hardware.h>
@@ -8,7 +8,12 @@
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN,
                   PIN_LCD_D0, PIN_LCD_D1, PIN_LCD_D2, PIN_LCD_D3);
 
-U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C oled(U8G2_R0);
+U8X8_SSD1306_128X32_UNIVISION_HW_I2C oled;
+
+uint8_t SENSOR_TILES[32] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                            0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0,
+                            0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 Game game;
 
@@ -87,17 +92,15 @@ void loop() {
     lcd.setCursor(0, 1);
     lcd.print(getStatusStr(game.state.status));
 
-    // Display board state on OLED screen
-    oled.firstPage();
-    do {
-        oled.drawLine(30, 0, 30, 31);
-        oled.drawLine(97, 0, 97, 31);
-
-        for (byte lx = 0; lx < 8; lx++)
-            for (byte ly = 0; ly < 8; ly++)
-                if (boardState & (1uLL << ((7 - ly) * 8 + lx)))
-                    oled.drawBox(lx * 8 + 32, ly * 4, 8, 4);
-    } while (oled.nextPage());
+    for (byte lx = 0; lx < 8; lx++)
+        for (byte ly = 0; ly < 4; ly++) {
+            uint8_t* tile = SENSOR_TILES;
+            if (boardState & (1uLL << ((3 - ly) * 16 + lx)))
+                tile += 8;
+            if (boardState & (1uLL << ((3 - ly) * 16 + lx + 8)))
+                tile += 16;
+            oled.drawTile(lx + 4, ly, 1, tile);
+        }
 
     lastBoardState = boardState;
 }
