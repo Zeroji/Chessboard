@@ -15,6 +15,9 @@ static void test_check() {
         "3k4/3pPK2/8/7r/8/8/8/8 b - - 0 1", // Pawn
         "r3k2r/1b5q/8/8/8/2b5/7B/R3K2R w KQkq - 0 1", // Bishop
         "8/8/2k5/5q2/8/3n4/5K2/8 w - - 0 1", // Knight + Queen
+        "8/8/8/8/4k1B1/8/1r6/r5K1 w - - 0 1", // Intercepting check
+        "1q5k/8/8/Ppnn4/1nKn4/1nnn4/8/8 w - b6 0 1" // En-passant saving checkmate
+        "1q5k/8/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1" // En-passant saving checkmate
     };
 
     for(uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++)
@@ -50,12 +53,32 @@ static void test_notCheck() {
     }
 }
 
+static void test_checkmate() {
+    char fens[][90] = {
+        "8/8/8/2rrr3/2rkb3/2rb4/5B2/6K1 b - - 0 1", // King can't move
+        "1q5k/q1q5/8/8/8/8/1K6/8 w - - 0 1", // King can't move
+        "8/8/8/2rrr3/2rkb3/2rbP2Q/8/6K1 b - - 0 1", // King can't move, checking piece is defended
+        "8/8/8/2rrrN2/2rkb3/2rbn3/2N5/6K1 b - - 0 1", // Double check
+        "8/6q1/8/8/4k1B1/8/1r6/r5K1 w - - 0 1", // Intercept is pinned
+        "1q5k/2r5/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1", // Saving en-passant is pinned
+    };
+
+    for(uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++)
+    {
+        Game game;
+        initializeFromFEN(&game, fens[i]);
+        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game), fens[i]);
+        TEST_ASSERT_TRUE_MESSAGE(isCheckmate(&game), fens[i]);
+    }
+}
+
 void run_check()
 {
     UNITY_BEGIN();
 
     RUN_TEST(test_check);
     RUN_TEST(test_notCheck);
+    RUN_TEST(test_checkmate);
 
     UNITY_END();
 }

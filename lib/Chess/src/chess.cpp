@@ -450,13 +450,13 @@ bool isCheck(Game* p_game)
     }
 
     uint8_t size = 0;
-    findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, true /* p_returnOnFirst */, size);
+    findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, true /* p_returnOnFirst */, true /* p_pawnThreats */, size);
 
     return size > 0;
 }
 
 //-----------------------------------------------------------------------------
-bool isCheckmate(Game* p_game, bool p_isChecked /* = true */)
+bool isCheckmate(Game* p_game)
 //-----------------------------------------------------------------------------
 {
     if (NULL == p_game) {
@@ -489,7 +489,7 @@ bool isCheckmate(Game* p_game, bool p_isChecked /* = true */)
 
     // 1. Find all moves threatening the King
     uint8_t threatenSize = 0;
-    Move* threatenKing = findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, false /* p_returnOnFirst */, threatenSize);
+    Move* threatenKing = findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, false /* p_returnOnFirst */, true /* p_pawnThreats */, threatenSize);
 
     if (threatenSize == 0) {
         free(threatenKing);
@@ -512,7 +512,7 @@ bool isCheckmate(Game* p_game, bool p_isChecked /* = true */)
 
         // Look for pieces threatening/defending the escape square
         uint8_t size = 0;
-        findMovesToSquare(p_game, escapeSquare, checkingPlayer, true /* p_returnOnFirst */, size);
+        findMovesToSquare(p_game, escapeSquare, checkingPlayer, true /* p_returnOnFirst */, true /* p_pawnThreats */, size);
 
         // Replace the King on the board
         p_game->board[checkedKingIndex] = static_cast<EPiece>(bits::King | checkedPlayer);
@@ -532,14 +532,18 @@ bool isCheckmate(Game* p_game, bool p_isChecked /* = true */)
     // 4. If checked by a knight, try to capture it
     if (isKnight(threatenKing[0].piece)) {        
         uint8_t size = 0;
-        Move* threatenKnight = findMovesToSquare(p_game, threatenKing[0].start, checkedPlayer, false /* p_returnOnFirst */, size);
+        Move* threatenKnight = findMovesToSquare(p_game, threatenKing[0].start, checkedPlayer, false /* p_returnOnFirst */, false /* p_pawnThreats */, size);
 
-        // TODO: verify capturing piece is not pinned
-        if (size > 0) {
-            free(threatenKnight);
-            free(threatenKing);
-            return false; // Found a piece to capture the checking knight
+        // Verify capturing piece is not pinned
+        for(uint8_t i = 0; i < size; i++) {
+            if (false == isPinned(p_game, threatenKnight[i].start, checkedKingIndex, checkingPlayer)) {
+                free(threatenKnight);
+                free(threatenKing);
+                return false; // Found a piece to capture the checking knight
+            }
         }
+
+        free(threatenKnight);
     }
 
     // 5. Try to capture or intercept the threatening piece
@@ -556,16 +560,18 @@ bool isCheckmate(Game* p_game, bool p_isChecked /* = true */)
     while (col != kingCol || row != kingRow) {
         uint8_t size = 0;
         uint8_t index = 8 * row + col;
-        Move* intercept = findMovesToSquare(p_game, index, checkedPlayer, false /* p_returnOnFirst */, size);
+        Move* intercept = findMovesToSquare(p_game, index, checkedPlayer, false /* p_returnOnFirst */, false /* p_pawnThreats */, size);
     
-        // TODO: verify capturing piece is not pinned
+        // Verify intercepting/capturing piece is not pinned
+        for(uint8_t i = 0; i < size; i++) {
+            if (false == isPinned(p_game, intercept[i].start, checkedKingIndex, checkingPlayer)) {
+                free(intercept);
+                free(threatenKing);
+                return false; // Found a piece to capture/intercept the checking piece
+            }
+        }
 
         free(intercept);
-
-        if (size > 0) {
-            free(threatenKing);
-            return false; // Found a piece to capture/intercept the checking piece
-        }
 
         if (diffCol != 0)
             col += (diffCol < 0) ? -1 : 1;
@@ -574,25 +580,45 @@ bool isCheckmate(Game* p_game, bool p_isChecked /* = true */)
     }
 
     // 6. If checked by a pawn, try to capture with en-passant
-    if (isPawn(threatenKing[0].piece)) { 
-        // TODO: check for en-passant capture
-        // TODO: verify capturing pawn is not pinned
+    if (isPawn(threatenKing[0].piece)) {
+        const uint8_t dirPRow    = (bits::Black == checkingPlayer) ? 1 : -1;
+
+        col = threatenKing[0].start % 8;
+        row = threatenKing[0].start / 8;
+
+        if (p_game->state.en_passant == (8 * (row + dirPRow) + col)) {
+            const int8_t posPCol[2]  = {-1, 1};
+            for(uint8_t i = 0; i < 2; i++) {
+                uint8_t pawnCol = col + posPCol[i];
+
+                if (pawnCol >= 8)
+                    continue;
+                
+                uint8_t index = 8 * row + pawnCol;
+                EPiece piece  = p_game->board[index];
+                if (isPawn(piece) && (checkedPlayer == (piece & bits::ColorMask)) && !isPinned(p_game, index, checkedKingIndex, checkingPlayer)) {
+                    // En-passant is saving from checkmate!
+                    return false;
+                }
+            }
+            
+        }
     }  
-    
+
     // 7. No escape square, no capture/intercept of the checking piece: checkmate
     free(threatenKing);
     return true;
 }
 
 //-----------------------------------------------------------------------------
-Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, bool p_returnOnFirst, uint8_t& p_size)
+Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, bool p_returnOnFirst, bool p_pawnThreats, uint8_t& p_size)
 //-----------------------------------------------------------------------------
 {
     Move* moves = nullptr;
 
     if (false == p_returnOnFirst)
         moves = (Move*)malloc(16 * sizeof(Move)); // Max: 8 knights, 4 orthogonally-threatening, 4 diagonally-threatening
-    
+
     p_size = 0;
 
     if (NULL == p_game) {
@@ -665,9 +691,10 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
         }
     }
 
-    // 3. Move with Pawns
-    const int8_t posPCol[2] = {-1, 1};
-    const uint8_t dirPRow   = (bits::Black == p_color) ? 1 : -1;
+    // 3. Move with Pawns (threaten / capture)
+    const int8_t posPCol[2]  = {-1, 1};
+    const uint8_t dirPRow    = (bits::Black == p_color) ? 1 : -1;
+    const EPiece targetPiece = p_game->board[p_targetSquare];
 
     for (uint8_t i = 0; i < 2; i++) {
         uint8_t col = targetCol + posPCol[i];
@@ -676,6 +703,10 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
         if ((col < 8) && (row < 8)) {
             EPiece piece = p_game->board[8 * row + col];
             if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
+
+                if (!p_pawnThreats && (EPiece::Empty == targetPiece || p_color == (targetPiece & bits::ColorMask)))
+                    continue; // Threats not required; and target square is not a piece than can be captured (not real move): skip
+
                 p_size++;
 
                 if (p_returnOnFirst)
@@ -688,7 +719,106 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
         }
     }
 
+    // 4. Move with Pawns (en-passant)
+    if (p_targetSquare == p_game->state.en_passant) {
+        for(uint8_t i = 0; i < 2; i++) {
+            uint8_t col = targetCol + dirCol[i];
+            uint8_t row = targetRow + dirPRow;
+            
+            if ((col < 8) && (row < 8)) {
+                EPiece piece = p_game->board[8 * row + col];
+                if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
+                    p_size++;
+
+                    if (p_returnOnFirst)
+                        return moves;
+                    
+                    moves[p_size - 1].start = 8 * row + col;
+                    moves[p_size - 1].end = p_targetSquare;
+                    moves[p_size - 1].piece = piece;
+                }
+            }
+        }
+    }
+
+    // 5. Move with Pawns (forward)
+    uint8_t row = targetRow + dirPRow;
+    if (row < 8)
+    {
+        EPiece piece = p_game->board[8 * row + targetCol];
+        if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
+            p_size++;
+
+            if (p_returnOnFirst)
+                return moves;
+            
+            moves[p_size - 1].start = 8 * row + targetCol;
+            moves[p_size - 1].end = p_targetSquare;
+            moves[p_size - 1].piece = piece;
+        } else if (EPiece::Empty == piece) {
+            row += dirPRow;
+            piece = p_game->board[8 * row + targetCol];
+            if (row == 1 || row == 6) {
+                if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
+                    p_size++;
+
+                    if (p_returnOnFirst)
+                        return moves;
+                    
+                    moves[p_size - 1].start = 8 * row + targetCol;
+                    moves[p_size - 1].end = p_targetSquare;
+                    moves[p_size - 1].piece = piece;
+                }
+            }
+        }
+    }
+
     return moves;
+}
+
+//-----------------------------------------------------------------------------
+bool isPinned(Game* p_game, uint8_t p_piece, uint8_t p_king, uint8_t p_pinningColor)
+//-----------------------------------------------------------------------------
+{
+    if (NULL == p_game) {
+        LOG("Unable to analyze pinned piece of null game");
+        return false;
+    }
+
+    uint8_t pieceCol = p_piece % 8;
+    uint8_t pieceRow = p_piece / 8;
+    uint8_t kingCol  = p_king % 8;
+    uint8_t kingRow  = p_king / 8;
+
+    int diffCol = kingCol - pieceCol;
+    int diffRow = kingRow - pieceRow;
+
+    bool orthogonal = (diffCol == 0 || diffRow == 0) && (diffCol != diffRow);
+    bool diagonal   = abs(diffCol) == abs(diffRow);
+
+    if (!orthogonal && !diagonal)
+        return false; // Not orthogonally neither diagonally placed
+    
+    uint8_t col = pieceCol;
+    uint8_t row = pieceRow;
+    while (col < 8 && row < 8) {
+        EPiece piece = p_game->board[8 * row + col];
+        if (EPiece::Empty != piece && (p_pinningColor == (piece & bits::ColorMask))) {
+            if (orthogonal && 0 != (piece & (bits::LongRangeFlag | bits::OrthogonalFlag))) {
+                return true;
+            } else if (diagonal && 0 != (piece & (bits::LongRangeFlag | bits::DiagonalFlag))) {
+                return true;
+            }
+        
+        }
+
+        if (diffCol != 0)
+            col += (diffCol < 0) ? 1 : -1;
+        if (diffRow != 0)
+            row += (diffRow < 0) ? 1 : -1;
+    }
+
+    return false;
 }
 
 //-----------------------------------------------------------------------------
