@@ -497,13 +497,18 @@ bool isCheckmate(Game* p_game)
     }
 
     // 2. Look for a square for the King to escape
-    static int diff[8] = {7, 8, 9, 1, -9, -8, -7, -1};
+    uint8_t kingCol      = checkedKingIndex % 8;
+    uint8_t kingRow      = checkedKingIndex / 8;
+    static int dirCol[8] = {-1, 0, 1, 1, 1, 0, -1, -1};
+    static int dirRow[8] = {1, 1, 1, 0, -1, -1, -1, 0};
     for(uint8_t i = 0; i < 8; i++) {
-        int escapeSquare = (int)checkedKingIndex + diff[i];
-        if (escapeSquare < 0 || escapeSquare > 63)
+        uint8_t col = kingCol + dirCol[i];
+        uint8_t row = kingRow + dirRow[i];
+        if (col >= 8 || row >= 8)
             continue; // Out of board
         
-        uint8_t onSquare = p_game->board[escapeSquare];
+        uint8_t escapeSquare = 8 * row + col;
+        uint8_t onSquare     = p_game->board[escapeSquare];
         if ((EPiece::Empty != onSquare) && (checkedPlayer == (onSquare & bits::ColorMask)))
             continue; // Checked player piece is occupying the square
 
@@ -547,8 +552,6 @@ bool isCheckmate(Game* p_game)
     }
 
     // 5. Try to capture or intercept the threatening piece
-    uint8_t kingCol     = checkedKingIndex % 8;
-    uint8_t kingRow     = checkedKingIndex / 8;
     uint8_t threatenCol = threatenKing[0].start % 8;
     uint8_t threatenRow = threatenKing[0].start / 8;
 
