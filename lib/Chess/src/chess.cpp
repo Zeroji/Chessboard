@@ -696,7 +696,7 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
 
     // 3. Move with Pawns (threaten / capture)
     const int8_t posPCol[2]  = {-1, 1};
-    const uint8_t dirPRow    = (bits::Black == p_color) ? 1 : -1;
+    const int     dirPRow    = (bits::Black == p_color) ? 1 : -1;
     const EPiece targetPiece = p_game->board[p_targetSquare];
 
     for (uint8_t i = 0; i < 2; i++) {
