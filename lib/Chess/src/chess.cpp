@@ -760,8 +760,8 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
             moves[p_size - 1].piece = piece;
         } else if (EPiece::Empty == piece) {
             row += dirPRow;
-            piece = p_game->board[8 * row + targetCol];
             if (row == 1 || row == 6) {
+                piece = p_game->board[8 * row + targetCol];
                 if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
                     p_size++;
 
