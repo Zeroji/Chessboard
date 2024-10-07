@@ -16,8 +16,9 @@ static void test_check() {
         "r3k2r/1b5q/8/8/8/2b5/7B/R3K2R w KQkq - 0 1", // Bishop
         "8/8/2k5/5q2/8/3n4/5K2/8 w - - 0 1", // Knight + Queen
         "8/8/8/8/4k1B1/8/1r6/r5K1 w - - 0 1", // Intercepting check
-        "1q5k/8/8/Ppnn4/1nKn4/1nnn4/8/8 w - b6 0 1" // En-passant saving checkmate
-        "1q5k/8/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1" // En-passant saving checkmate
+        "1q5k/8/8/Ppnn4/1nKn4/1nnn4/8/8 w - b6 0 1", // En-passant saving checkmate
+        "1q5k/8/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1", // En-passant saving checkmate
+        "8/8/8/8/8/2K5/8/1k5R b - - 0 1", // King can escape
     };
 
     for(uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++)
@@ -61,11 +62,11 @@ static void test_checkmate() {
         "8/8/8/2rrrN2/2rkb3/2rbn3/2N5/6K1 b - - 0 1", // Double check
         "8/6q1/8/8/4k1B1/8/1r6/r5K1 w - - 0 1", // Intercept is pinned
         "1q5k/2r5/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1", // Saving en-passant is pinned
-
-        // Bug: King displacement should be by col/row instead of index shifting allowing jumping 2 rows away
-        "7r/6r1/8/8/7K/8/8/6k1 w - - 0 1",
-        // Bug: 'findMovesToSquares' is not taking into account King moves (need to use the 'threaten' param)
-        "8/8/8/8/8/1K6/8/1k5R b - - 0 1",
+        "8/3Bk2P/N7/PPP4Q/1K3r2/7r/NP4P1/4B3 w - - 0 1", // No interception possible
+        "3rk2r/pppp1ppp/8/8/1B2Q3/8/PPPPPPPP/RN2KBNR b KQk - 0 1", // No castling possible
+        "7r/6r1/8/8/7K/8/8/6k1 w - - 0 1", // King can move but always checked
+        "k7/8/8/8/5B2/5B2/8/1K4Q1 b - - 0 1", // King can move but always checked
+        "8/8/8/8/8/1K6/8/1k5R b - - 0 1", // Blocked by other King
     };
 
     for(uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++)
