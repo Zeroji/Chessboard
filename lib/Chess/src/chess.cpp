@@ -6,13 +6,13 @@
 
 #ifdef ARDUINO_ARCH_AVR
 #include <Arduino.h>
-#define LOG(X) Serial.println(X)
-#define LOG_INDEX(X, IDX)         \
-    do {                          \
-        Serial.print(X);          \
-        Serial.print(" (index "); \
-        Serial.print(IDX);        \
-        Serial.println(')');      \
+#define LOG(X) Serial.println(F(X))
+#define LOG_INDEX(X, IDX)            \
+    do {                             \
+        Serial.print(F(X));          \
+        Serial.print(F(" (index ")); \
+        Serial.print(IDX);           \
+        Serial.println(')');         \
     } while (false)
 #else
 #define HAS_PRINTF
