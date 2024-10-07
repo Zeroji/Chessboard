@@ -67,6 +67,7 @@ static void test_checkmate() {
         "7r/6r1/8/8/7K/8/8/6k1 w - - 0 1", // King can move but always checked
         "k7/8/8/8/5B2/5B2/8/1K4Q1 b - - 0 1", // King can move but always checked
         "8/8/8/8/8/1K6/8/1k5R b - - 0 1", // Blocked by other King
+        "3rkbnr/1p1bp3/1q1p3p/p5pQ/3n4/PPR5/5PPP/6K1 b - - 2 2", // Attacked diagonal, pawn can't intercept
     };
 
     for(uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++)

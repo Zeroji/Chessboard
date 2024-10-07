@@ -499,8 +499,8 @@ bool isCheckmate(Game* p_game)
     // 2. Look for a square for the King to escape
     uint8_t kingCol      = checkedKingIndex % 8;
     uint8_t kingRow      = checkedKingIndex / 8;
-    static int dirCol[8] = {-1, 0, 1, 1, 1, 0, -1, -1};
-    static int dirRow[8] = {1, 1, 1, 0, -1, -1, -1, 0};
+    static int8_t dirCol[8] = {-1, 0, 1, 1, 1, 0, -1, -1};
+    static int8_t dirRow[8] = {1, 1, 1, 0, -1, -1, -1, 0};
     for(uint8_t i = 0; i < 8; i++) {
         uint8_t col = kingCol + dirCol[i];
         uint8_t row = kingRow + dirRow[i];
@@ -584,7 +584,7 @@ bool isCheckmate(Game* p_game)
 
     // 6. If checked by a pawn, try to capture with en-passant
     if (isPawn(threatenKing[0].piece)) {
-        const uint8_t dirPRow    = (bits::Black == checkingPlayer) ? 1 : -1;
+        const int8_t dirPRow = (bits::Black == checkingPlayer) ? 1 : -1;
 
         col = threatenKing[0].start % 8;
         row = threatenKing[0].start / 8;
@@ -696,7 +696,7 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
 
     // 3. Move with Pawns (threaten / capture)
     const int8_t posPCol[2]  = {-1, 1};
-    const int     dirPRow    = (bits::Black == p_color) ? 1 : -1;
+    const int8_t     dirPRow = (bits::Black == p_color) ? 1 : -1;
     const EPiece targetPiece = p_game->board[p_targetSquare];
 
     for (uint8_t i = 0; i < 2; i++) {
@@ -745,32 +745,34 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
     }
 
     // 5. Move with Pawns (forward)
-    uint8_t row = targetRow + dirPRow;
-    if (row < 8)
-    {
-        EPiece piece = p_game->board[8 * row + targetCol];
-        if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
-            p_size++;
+    if (EPiece::Empty == p_game->board[p_targetSquare]) {
+        uint8_t row = targetRow + dirPRow;
+        if (row < 8)
+        {
+            EPiece piece = p_game->board[8 * row + targetCol];
+            if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
+                p_size++;
 
-            if (p_returnOnFirst)
-                return moves;
-            
-            moves[p_size - 1].start = 8 * row + targetCol;
-            moves[p_size - 1].end = p_targetSquare;
-            moves[p_size - 1].piece = piece;
-        } else if (EPiece::Empty == piece) {
-            row += dirPRow;
-            if (row == 1 || row == 6) {
-                piece = p_game->board[8 * row + targetCol];
-                if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
-                    p_size++;
+                if (p_returnOnFirst)
+                    return moves;
+                
+                moves[p_size - 1].start = 8 * row + targetCol;
+                moves[p_size - 1].end = p_targetSquare;
+                moves[p_size - 1].piece = piece;
+            } else if (EPiece::Empty == piece) {
+                row += dirPRow;
+                if (row == 1 || row == 6) {
+                    piece = p_game->board[8 * row + targetCol];
+                    if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
+                        p_size++;
 
-                    if (p_returnOnFirst)
-                        return moves;
-                    
-                    moves[p_size - 1].start = 8 * row + targetCol;
-                    moves[p_size - 1].end = p_targetSquare;
-                    moves[p_size - 1].piece = piece;
+                        if (p_returnOnFirst)
+                            return moves;
+                        
+                        moves[p_size - 1].start = 8 * row + targetCol;
+                        moves[p_size - 1].end = p_targetSquare;
+                        moves[p_size - 1].piece = piece;
+                    }
                 }
             }
         }
