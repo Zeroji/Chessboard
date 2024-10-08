@@ -548,7 +548,10 @@ bool isCheckmate(Game* p_game)
             }
         }
 
+        // 4.1 No escape square, no capture/intercept of the checking knight: checkmate
         free(threatenKnight);
+        free(threatenKing);
+        return true;
     }
 
     // 5. Try to capture or intercept the threatening piece

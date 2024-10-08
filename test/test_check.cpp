@@ -54,18 +54,22 @@ static void test_notCheck() {
 
 static void test_checkmate() {
     char fens[][90] = {
-        "8/8/8/2rrr3/2rkb3/2rb4/5B2/6K1 b - - 0 1",                // King can't move
-        "1q5k/q1q5/8/8/8/8/1K6/8 w - - 0 1",                       // King can't move
-        "8/8/8/2rrr3/2rkb3/2rbP2Q/8/6K1 b - - 0 1",                // King can't move, checking piece is defended
-        "8/8/8/2rrrN2/2rkb3/2rbn3/2N5/6K1 b - - 0 1",              // Double check
-        "8/6q1/8/8/4k1B1/8/1r6/r5K1 w - - 0 1",                    // Intercept is pinned
-        "1q5k/2r5/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1",             // Saving en-passant is pinned
-        "8/3Bk2P/N7/PPP4Q/1K3r2/7r/NP4P1/4B3 w - - 0 1",           // No interception possible
-        "3rk2r/pppp1ppp/8/8/1B2Q3/8/PPPPPPPP/RN2KBNR b KQk - 0 1", // No castling possible
-        "7r/6r1/8/8/7K/8/8/6k1 w - - 0 1",                         // King can move but always checked
-        "k7/8/8/8/5B2/5B2/8/1K4Q1 b - - 0 1",                      // King can move but always checked
-        "8/8/8/8/8/1K6/8/1k5R b - - 0 1",                          // Blocked by other King
-        "3rkbnr/1p1bp3/1q1p3p/p5pQ/3n4/PPR5/5PPP/6K1 b - - 2 2",   // Attacked diagonal, pawn can't intercept
+        "8/8/8/2rrr3/2rkb3/2rb4/5B2/6K1 b - - 0 1",                      // King can't move
+        "1q5k/q1q5/8/8/8/8/1K6/8 w - - 0 1",                             // King can't move
+        "8/8/8/2rrr3/2rkb3/2rbP2Q/8/6K1 b - - 0 1",                      // King can't move, checking piece is defended
+        "8/8/8/2rrrN2/2rkb3/2rbn3/2N5/6K1 b - - 0 1",                    // Double check
+        "8/6q1/8/8/4k1B1/8/1r6/r5K1 w - - 0 1",                          // Intercept is pinned
+        "1q5k/2r5/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1",                   // Saving en-passant is pinned
+        "8/3Bk2P/N7/PPP4Q/1K3r2/7r/NP4P1/4B3 w - - 0 1",                 // No interception possible
+        "3rk2r/pppp1ppp/8/8/1B2Q3/8/PPPPPPPP/RN2KBNR b KQk - 0 1",       // No castling possible
+        "7r/6r1/8/8/7K/8/8/6k1 w - - 0 1",                               // King can move but always checked
+        "k7/8/8/8/5B2/5B2/8/1K4Q1 b - - 0 1",                            // King can move but always checked
+        "8/8/8/8/8/1K6/8/1k5R b - - 0 1",                                // Blocked by other King
+        "3rkbnr/1p1bp3/1q1p3p/p5pQ/3n4/PPR5/5PPP/6K1 b - - 2 2",         // Attacked diagonal, pawn can't intercept
+        "8/5r2/4K1q1/4p3/3k4/8/8/8 w - - 0 7",                           // Stolen from https://github.com/jhlywa/chess.js
+        "4r2r/p6p/1pnN2p1/kQp5/3pPq2/3P4/PPP3PP/R5K1 b - - 0 2",         // Stolen from https://github.com/jhlywa/chess.js
+        "r3k2r/ppp2p1p/2n1p1p1/8/2B2P1q/2NPb1n1/PP4PP/R2Q3K w kq - 0 8", // Stolen from https://github.com/jhlywa/chess.js
+        "8/6R1/pp1r3p/6p1/P3R1Pk/1P4P1/7K/8 b - - 0 4",                  // Stolen from https://github.com/jhlywa/chess.js
     };
 
     for (uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++) {
