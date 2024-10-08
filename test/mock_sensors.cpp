@@ -15,7 +15,7 @@ uint64_t updateSensors(uint64_t p_state, const char*& p_actionPtr)
     case '+':
     case '-': {
         char letter = *(p_actionPtr);
-        char number = *(p_actionPtr+1);
+        char number = *(p_actionPtr + 1);
         uint8_t col = ((uint8_t)(*p_actionPtr++) & 0b11011111) - (uint8_t)('A'); // clear lowercase bit then move to 0-7
         if (col >= 8) {
             printf("Unable to update sensors with invalid cell col: %c\n", *(p_actionPtr - 1));

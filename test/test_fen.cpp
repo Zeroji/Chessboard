@@ -1,6 +1,6 @@
-#include <unity.h>
-#include <chess.h>
 #include "utils.h"
+#include <chess.h>
+#include <unity.h>
 
 static void test_initFromFen_castling() {
     Game game;
@@ -50,26 +50,26 @@ static void test_writeToFen_castling() {
     TEST_ASSERT_EQUAL_STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", fenBuffer);
 
     game.state.castlingK[bits::White] = false;
-    game.halfmoveClock = 9;
-    game.fullmoveClock = 8;
+    game.halfmoveClock                = 9;
+    game.fullmoveClock                = 8;
     TEST_ASSERT_EQUAL(55, writeToFEN(&game, fenBuffer));
     TEST_ASSERT_EQUAL_STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Qkq - 9 8", fenBuffer);
 
     game.state.castlingK[bits::Black] = false;
-    game.halfmoveClock = 2;
-    game.fullmoveClock = 3;
+    game.halfmoveClock                = 2;
+    game.fullmoveClock                = 3;
     TEST_ASSERT_EQUAL(54, writeToFEN(&game, fenBuffer));
     TEST_ASSERT_EQUAL_STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Qq - 2 3", fenBuffer);
 
     game.state.castlingQ[bits::Black] = false;
-    game.halfmoveClock = 99;
-    game.fullmoveClock = 50;
+    game.halfmoveClock                = 99;
+    game.fullmoveClock                = 50;
     TEST_ASSERT_EQUAL(55, writeToFEN(&game, fenBuffer));
     TEST_ASSERT_EQUAL_STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Q - 99 50", fenBuffer);
 
     game.state.castlingQ[bits::White] = false;
-    game.halfmoveClock = 0;
-    game.fullmoveClock = 3;
+    game.halfmoveClock                = 0;
+    game.fullmoveClock                = 3;
     TEST_ASSERT_EQUAL(53, writeToFEN(&game, fenBuffer));
     TEST_ASSERT_EQUAL_STRING("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 3", fenBuffer);
 }
@@ -92,8 +92,7 @@ static void test_writeToFen_game() {
         "-d2 -h6 +h6 -c8 +b7"
         "-a2 +a3 -e7 +e5"
         "-e1 +c1 -a1 +d1"
-        "# Black to move to continue!"
-    };
+        "# Black to move to continue!"};
     EXEC_REF(&game, actions, DEFAULT_SENSORS_STATE);
 
     char fenBuffer[96];
@@ -101,8 +100,7 @@ static void test_writeToFen_game() {
     TEST_ASSERT_EQUAL_STRING("r2qk2r/pb1n1p1p/2pp1npQ/1p2p3/3PP3/P1N2P2/1PP1N1PP/2KR1B1R b kq - 1 11", fenBuffer);
 }
 
-void run_fen()
-{
+void run_fen() {
     UNITY_BEGIN();
 
     RUN_TEST(test_initFromFen_castling);

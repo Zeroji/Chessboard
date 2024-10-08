@@ -1,6 +1,6 @@
-#include <unity.h>
-#include <chess.h>
 #include "utils.h"
+#include <chess.h>
+#include <unity.h>
 
 static void test_getMoveStr() {
     Game game;
@@ -27,16 +27,14 @@ static void test_getMoveStr() {
     };
 
     Move* lastMovePtr;
-    for(uint8_t i = 0; i < (sizeof(moves) / sizeof(moves[0])) / 2; i++)
-    {
-        sensors = EXEC(&game, moves[2*i], sensors);
+    for (uint8_t i = 0; i < (sizeof(moves) / sizeof(moves[0])) / 2; i++) {
+        sensors     = EXEC(&game, moves[2 * i], sensors);
         lastMovePtr = (i % 2 == 0) ? &game.lastMoveW : &game.lastMoveB;
-        TEST_ASSERT_EQUAL_STRING(moves[2*i+1], getMoveStr(*lastMovePtr));
+        TEST_ASSERT_EQUAL_STRING(moves[2 * i + 1], getMoveStr(*lastMovePtr));
     }
 }
 
-void run_moves()
-{
+void run_moves() {
     UNITY_BEGIN();
 
     RUN_TEST(test_getMoveStr);

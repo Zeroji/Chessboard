@@ -1,7 +1,7 @@
-#include <unity.h>
-#include <chess.h>
 #include "mock_sensors.h"
 #include "utils.h"
+#include <chess.h>
+#include <unity.h>
 
 static void test_promotionWhite() {
     Game game;
@@ -37,8 +37,7 @@ static void test_promotionBlack() {
     TEST_ASSERT_EQUAL(EPiece::BQueen, game.board[0 * 8 + 0]);
 }
 
-void run_promotion()
-{
+void run_promotion() {
     UNITY_BEGIN();
 
     RUN_TEST(test_promotionWhite);

@@ -1,7 +1,7 @@
-#include <unity.h>
-#include <chess.h>
 #include "mock_sensors.h"
 #include "utils.h"
+#include <chess.h>
+#include <unity.h>
 
 static void test_castlingKingSide() {
     Game game;
@@ -161,8 +161,7 @@ static void test_castlingAvailability_RookCaptured() {
     TEST_ASSERT_FALSE(game.state.castlingQ[bits::Black]);
 }
 
-void run_castling()
-{
+void run_castling() {
     UNITY_BEGIN();
 
     RUN_TEST(test_castlingKingSide);

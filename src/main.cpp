@@ -62,7 +62,7 @@ void loop() {
     if (keyPressed == LCD_KEY::Select)
         initializeGame(&game, boardState);
 
-    // Update game
+        // Update game
 #ifdef USE_SERIAL_CHESSBOARD
     if (boardState != lastBoardState)
 #endif
