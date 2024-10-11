@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <chess.h>
+#include <stdio.h>
 #include <unity.h>
 
 static void test_check() {
@@ -80,12 +81,32 @@ static void test_checkmate() {
     }
 }
 
+static void test_checkmate_bnilsou() {
+    FILE* file;
+    int bufferLength = 90;
+    char buffer[bufferLength];
+
+    file = fopen("test/data/bnilsou.fen", "r");
+    if (file == NULL)
+        TEST_ASSERT_TRUE_MESSAGE(false, "Failed to open test file");
+
+    while (fgets(buffer, bufferLength, file)) {
+        Game game;
+        initializeFromFEN(&game, buffer);
+        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game), buffer);
+        TEST_ASSERT_TRUE_MESSAGE(isCheckmate(&game), buffer);
+    }
+
+    fclose(file);
+}
+
 void run_check() {
     UNITY_BEGIN();
 
     RUN_TEST(test_check);
     RUN_TEST(test_notCheck);
     RUN_TEST(test_checkmate);
+    RUN_TEST(test_checkmate_bnilsou);
 
     UNITY_END();
 }
