@@ -1021,7 +1021,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 uint8_t diff = abs(p_game->state.removed_1.index - indexPlaced);
                 if ((true == isKing(p_game->state.removed_1.piece)) && (2 == diff)) {
                     // King replaced two cells away on the same row: player is castling (1/3)
-                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false, false};
+                    *lastMovePtr                  = BUILD_MOVE(p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece);
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
@@ -1029,7 +1029,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 } else {
                     // Player has played
                     p_game->board[indexPlaced]    = p_game->state.removed_1.piece;
-                    *lastMovePtr                  = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, false, false, false};
+                    *lastMovePtr                  = BUILD_MOVE(p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece);
                     p_game->state.removed_1.index = NULL_INDEX;
                     p_game->state.removed_1.piece = Empty;
                     p_game->state.status          = otherPlayer | bits::ToPlay;
@@ -1055,7 +1055,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                         p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
                     }
 
-                    lastMovePtr->check = isCheck(p_game);
+                    updateCheckState(p_game, lastMovePtr);
                     p_game->fullmoveClock += (player == bits::Black ? 1 : 0);
 
                     if (isPawn(lastMovePtr->piece)) {
@@ -1092,13 +1092,14 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 // Check which piece has been removed first (capturing piece or captured piece)
                 if (true == isPlayerColor(p_game->state.removed_1.piece)) {
                     // The capturing piece was removed first
-                    *lastMovePtr               = {p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece, true, false, false};
+                    *lastMovePtr               = BUILD_MOVE(p_game->state.removed_1.index, indexPlaced, p_game->state.removed_1.piece);
                     p_game->board[indexPlaced] = p_game->state.removed_1.piece;
                 } else if (true == isOtherPlayerColor(p_game->state.removed_1.piece)) {
                     // The captured piece was removed first
                     p_game->board[indexPlaced] = p_game->state.removed_2.piece;
-                    *lastMovePtr               = {p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece, true, false, false};
+                    *lastMovePtr               = BUILD_MOVE(p_game->state.removed_2.index, indexPlaced, p_game->state.removed_2.piece);
                 }
+                lastMovePtr->captured = true;
 
                 p_game->state.removed_1.index = NULL_INDEX;
                 p_game->state.removed_1.piece = Empty;
@@ -1113,7 +1114,7 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                     p_game->board[indexPlaced] = static_cast<EPiece>(player | bits::Queen);
                 }
 
-                lastMovePtr->check = isCheck(p_game);
+                updateCheckState(p_game, lastMovePtr);
                 p_game->fullmoveClock += (player == bits::Black ? 1 : 0);
                 p_game->halfmoveClock = 0;
                 updateCastlingAvailability(p_game);
@@ -1134,11 +1135,11 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
         } else if (indexRemoved == p_game->state.en_passant) {
             p_game->board[indexRemoved] = Empty;
             lastMovePtr->captured       = true;
-            lastMovePtr->check          = isCheck(p_game);
             p_game->state.en_passant    = NULL_INDEX;
             p_game->state.status        = otherPlayer | bits::ToPlay;
             p_game->fullmoveClock += (player == bits::Black ? 1 : 0);
             p_game->halfmoveClock = 0;
+            updateCheckState(p_game, lastMovePtr);
             // updateCastlingAvailability(p_game); // -> en-passant can't change castling availability
             return true;
         } else {
@@ -1172,9 +1173,9 @@ bool evolveGame(Game* p_game, uint64_t p_sensors)
                 p_game->state.removed_1.piece = Empty;
                 p_game->state.en_passant      = NULL_INDEX;
                 p_game->state.status          = otherPlayer | bits::ToPlay;
-                lastMovePtr->check            = isCheck(p_game); // Rarest move ever if checkmate :)
                 p_game->fullmoveClock += (player == bits::Black ? 1 : 0);
                 p_game->halfmoveClock++;
+                updateCheckState(p_game, lastMovePtr);
                 updateCastlingAvailability(p_game);
                 return true;
             }
@@ -1251,9 +1252,23 @@ const char* getMoveStr(Move p_move)
         msg[i++] = 'Q';
     }
 
-    if (p_move.check)
+    if (p_move.checkmate)
+        msg[i++] = '#';
+    else if (p_move.check)
         msg[i++] = '+';
 
     msg[i] = 0;
     return msg;
+}
+
+//-----------------------------------------------------------------------------
+void updateCheckState(Game* p_game, Move* p_move)
+//-----------------------------------------------------------------------------
+{
+    if (NULL == p_game || NULL == p_move) {
+        return;
+    }
+
+    p_move->check     = isCheck(p_game);
+    p_move->checkmate = p_move->check ? isCheckmate(p_game) : false;
 }
