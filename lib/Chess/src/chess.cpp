@@ -449,10 +449,8 @@ bool isCheck(Game* p_game)
         return false;
     }
 
-    uint8_t size = 0;
-    findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, true /* p_returnOnFirst */, true /* p_includeThreats */, size);
-
-    return size > 0;
+    Move moves[1];
+    return findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, true /* p_returnOnFirst */, true /* p_includeThreats */, moves);
 }
 
 //-----------------------------------------------------------------------------
@@ -488,11 +486,10 @@ bool isCheckmate(Game* p_game)
     }
 
     // 1. Find all moves threatening the King
-    uint8_t threatenSize = 0;
-    Move* threatenKing   = findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, false /* p_returnOnFirst */, true /* p_includeThreats */, threatenSize);
+    Move threatenKing[16];
+    uint8_t threatenSize = findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, false /* p_returnOnFirst */, true /* p_includeThreats */, threatenKing);
 
     if (threatenSize == 0) {
-        free(threatenKing);
         return false; // No opponent piece are threatening the King, not checkmate
     }
 
@@ -516,41 +513,35 @@ bool isCheckmate(Game* p_game)
         p_game->board[checkedKingIndex] = EPiece::Empty;
 
         // Look for pieces threatening/defending the escape square
-        uint8_t size = 0;
-        findMovesToSquare(p_game, escapeSquare, checkingPlayer, true /* p_returnOnFirst */, true /* p_includeThreats */, size);
+        Move moves[1];
+        uint8_t size = findMovesToSquare(p_game, escapeSquare, checkingPlayer, true /* p_returnOnFirst */, true /* p_includeThreats */, moves);
 
         // Replace the King on the board
         p_game->board[checkedKingIndex] = static_cast<EPiece>(bits::King | checkedPlayer);
 
         if (size == 0) {
-            free(threatenKing);
             return false; // Found an escape square not threaten by any opponent piece, no checkmate
         }
     }
 
     // 3. If checked by several pieces with no escape square: checkmate
     if (threatenSize >= 2) {
-        free(threatenKing);
         return true;
     }
 
     // 4. If checked by a knight, try to capture it
     if (isKnight(threatenKing[0].piece)) {
-        uint8_t size         = 0;
-        Move* threatenKnight = findMovesToSquare(p_game, threatenKing[0].start, checkedPlayer, false /* p_returnOnFirst */, false /* p_includeThreats */, size);
+        Move threatenKnight[16];
+        uint8_t size = findMovesToSquare(p_game, threatenKing[0].start, checkedPlayer, false /* p_returnOnFirst */, false /* p_includeThreats */, threatenKnight);
 
         // Verify capturing piece is not pinned
         for (uint8_t i = 0; i < size; i++) {
             if (false == isPinned(p_game, threatenKnight[i].start, checkedKingIndex, checkingPlayer)) {
-                free(threatenKnight);
-                free(threatenKing);
                 return false; // Found a piece to capture the checking knight
             }
         }
 
         // 4.1 No escape square, no capture/intercept of the checking knight: checkmate
-        free(threatenKnight);
-        free(threatenKing);
         return true;
     }
 
@@ -564,20 +555,16 @@ bool isCheckmate(Game* p_game)
     uint8_t col = threatenCol;
     uint8_t row = threatenRow;
     while (col != kingCol || row != kingRow) {
-        uint8_t size    = 0;
-        uint8_t index   = 8 * row + col;
-        Move* intercept = findMovesToSquare(p_game, index, checkedPlayer, false /* p_returnOnFirst */, false /* p_includeThreats */, size);
+        uint8_t index = 8 * row + col;
+        Move intercept[16];
+        uint8_t size = findMovesToSquare(p_game, index, checkedPlayer, false /* p_returnOnFirst */, false /* p_includeThreats */, intercept);
 
         // Verify intercepting/capturing piece is not pinned
         for (uint8_t i = 0; i < size; i++) {
             if (false == isPinned(p_game, intercept[i].start, checkedKingIndex, checkingPlayer)) {
-                free(intercept);
-                free(threatenKing);
                 return false; // Found a piece to capture/intercept the checking piece
             }
         }
-
-        free(intercept);
 
         if (diffCol != 0)
             col += (diffCol < 0) ? -1 : 1;
@@ -611,26 +598,19 @@ bool isCheckmate(Game* p_game)
     }
 
     // 7. No escape square, no capture/intercept of the checking piece: checkmate
-    free(threatenKing);
     return true;
 }
 
 //-----------------------------------------------------------------------------
-Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, bool p_returnOnFirst, bool p_includeThreats, uint8_t& p_size)
+uint8_t findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, bool p_returnOnFirst, bool p_includeThreats, Move* p_moves)
 //-----------------------------------------------------------------------------
 {
-    Move* moves = nullptr;
-
-    if (false == p_returnOnFirst)
-        moves = (Move*)malloc(16 * sizeof(Move)); // Max: 8 knights, 4 orthogonally-threatening, 4 diagonally-threatening
-
-    p_size = 0;
-
     if (NULL == p_game) {
         LOG("Unable to analyze checkmate of null game");
-        return moves;
+        return 0;
     }
 
+    uint8_t size      = 0;
     uint8_t targetCol = p_targetSquare % 8;
     uint8_t targetRow = p_targetSquare / 8;
 
@@ -661,14 +641,13 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
 
         if (true == pieceFound) {
             if ((true == (*matchingFunc[i / 4])(piece)) && (p_color == (piece & bits::ColorMask))) {
-                p_size++;
+                p_moves[size].start = 8 * row + col;
+                p_moves[size].end   = p_targetSquare;
+                p_moves[size].piece = piece;
+                size++;
 
                 if (p_returnOnFirst)
-                    return moves;
-
-                moves[p_size - 1].start = 8 * row + col;
-                moves[p_size - 1].end   = p_targetSquare;
-                moves[p_size - 1].piece = piece;
+                    return size;
             }
         }
     }
@@ -684,14 +663,13 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
         if ((col < 8) && (row < 8)) {
             EPiece piece = p_game->board[8 * row + col];
             if ((true == isKnight(piece)) && (p_color == (piece & bits::ColorMask))) {
-                p_size++;
+                p_moves[size].start = 8 * row + col;
+                p_moves[size].end   = p_targetSquare;
+                p_moves[size].piece = piece;
+                size++;
 
                 if (p_returnOnFirst)
-                    return moves;
-
-                moves[p_size - 1].start = 8 * row + col;
-                moves[p_size - 1].end   = p_targetSquare;
-                moves[p_size - 1].piece = piece;
+                    return size;
             }
         }
     }
@@ -712,14 +690,13 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
                 if (!p_includeThreats && (EPiece::Empty == targetPiece || p_color == (targetPiece & bits::ColorMask)))
                     continue; // Threats not required; and target square is not a piece than can be captured (not real move): skip
 
-                p_size++;
+                p_moves[size].start = 8 * row + col;
+                p_moves[size].end   = p_targetSquare;
+                p_moves[size].piece = piece;
+                size++;
 
                 if (p_returnOnFirst)
-                    return moves;
-
-                moves[p_size - 1].start = 8 * row + col;
-                moves[p_size - 1].end   = p_targetSquare;
-                moves[p_size - 1].piece = piece;
+                    return size;
             }
         }
     }
@@ -733,14 +710,13 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
             if ((col < 8) && (row < 8)) {
                 EPiece piece = p_game->board[8 * row + col];
                 if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
-                    p_size++;
+                    p_moves[size].start = 8 * row + col;
+                    p_moves[size].end   = p_targetSquare;
+                    p_moves[size].piece = piece;
+                    size++;
 
                     if (p_returnOnFirst)
-                        return moves;
-
-                    moves[p_size - 1].start = 8 * row + col;
-                    moves[p_size - 1].end   = p_targetSquare;
-                    moves[p_size - 1].piece = piece;
+                        return size;
                 }
             }
         }
@@ -752,27 +728,25 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
         if (row < 8) {
             EPiece piece = p_game->board[8 * row + targetCol];
             if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
-                p_size++;
+                p_moves[size].start = 8 * row + targetCol;
+                p_moves[size].end   = p_targetSquare;
+                p_moves[size].piece = piece;
+                size++;
 
                 if (p_returnOnFirst)
-                    return moves;
-
-                moves[p_size - 1].start = 8 * row + targetCol;
-                moves[p_size - 1].end   = p_targetSquare;
-                moves[p_size - 1].piece = piece;
+                    return size;
             } else if (EPiece::Empty == piece) {
                 row += dirPRow;
                 if (row == 1 || row == 6) {
                     piece = p_game->board[8 * row + targetCol];
                     if ((true == isPawn(piece)) && (p_color == (piece & bits::ColorMask))) {
-                        p_size++;
+                        p_moves[size].start = 8 * row + targetCol;
+                        p_moves[size].end   = p_targetSquare;
+                        p_moves[size].piece = piece;
+                        size++;
 
                         if (p_returnOnFirst)
-                            return moves;
-
-                        moves[p_size - 1].start = 8 * row + targetCol;
-                        moves[p_size - 1].end   = p_targetSquare;
-                        moves[p_size - 1].piece = piece;
+                            return size;
                     }
                 }
             }
@@ -791,26 +765,26 @@ Move* findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, b
         if (isKing(piece) && (p_color == (piece & bits::ColorMask))) {
             if (!p_includeThreats) {
                 // Verify if the King can actually move to the target square
-                uint8_t size       = 0;
+                uint8_t blockSize = 0;
+                Move blockMoves[1];
                 uint8_t otherColor = (bits::White == p_color) ? bits::Black : bits::White;
-                findMovesToSquare(p_game, 8 * row + col, otherColor, true /* p_returnOnFirst */, true /* p_includeThreats */, size);
+                blockSize          = findMovesToSquare(p_game, 8 * row + col, otherColor, true /* p_returnOnFirst */, true /* p_includeThreats */, blockMoves);
 
-                if (size > 0)
+                if (blockSize > 0)
                     continue; // King can't actually move to the target square (defended)
             }
 
-            p_size++;
+            p_moves[size].start = 8 * row + col;
+            p_moves[size].end   = p_targetSquare;
+            p_moves[size].piece = piece;
+            size++;
 
             if (p_returnOnFirst)
-                return moves;
-
-            moves[p_size - 1].start = 8 * row + col;
-            moves[p_size - 1].end   = p_targetSquare;
-            moves[p_size - 1].piece = piece;
+                return size;
         }
     }
 
-    return moves;
+    return size;
 }
 
 //-----------------------------------------------------------------------------
