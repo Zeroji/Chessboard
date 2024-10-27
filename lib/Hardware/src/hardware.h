@@ -31,6 +31,9 @@ enum LCD_KEY {
     Right,
 };
 
+// Delay to validate board state
+constexpr uint32_t STABLE_BOARD_DELAY_MS = 250;
+
 // Gets current pressed LCD button
 LCD_KEY getLcdKeyPressed();
 
@@ -42,3 +45,6 @@ void initChessboard();
 
 // Read current state of chessboard, LSB=A1, B1... MSB = H8
 uint64_t readChessboard();
+
+// Apply a delay to validate chessboard state
+uint64_t stableBoardFilter(uint64_t p_boardState, uint32_t p_delay = STABLE_BOARD_DELAY_MS);

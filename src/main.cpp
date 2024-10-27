@@ -56,7 +56,7 @@ void loop() {
         }
     }
 #else
-    const uint64_t boardState = readChessboard();
+    const uint64_t boardState = stableBoardFilter(readChessboard());
 #endif
 
     if (keyPressed == LCD_KEY::Select)
