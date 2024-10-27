@@ -16,4 +16,5 @@ int main(int argc, char** argv) {
     RUN_MODULE(run_promotion);
     RUN_MODULE(run_check);
     RUN_MODULE(run_moves);
+    RUN_MODULE(run_utils);
 }
