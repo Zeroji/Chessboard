@@ -14,12 +14,9 @@
 #define CHESSBOARD_REV_A_JUMPED
 
 // Pin definitions for LCD (not sure how to move these to .cpp file)
-constexpr uint8_t PIN_LCD_RS = 8;
-constexpr uint8_t PIN_LCD_EN = 9;
-constexpr uint8_t PIN_LCD_D0 = 4;
-constexpr uint8_t PIN_LCD_D1 = 5;
-constexpr uint8_t PIN_LCD_D2 = 6;
-constexpr uint8_t PIN_LCD_D3 = 7;
+
+// Pin definitions for SD
+constexpr uint8_t PIN_SD = 99;
 
 // LCD buttons
 enum LCD_KEY {

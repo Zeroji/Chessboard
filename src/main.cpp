@@ -4,6 +4,7 @@
 
 #include <chess.h>
 #include <hardware.h>
+#include <writer.h>
 
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN,
                   PIN_LCD_D0, PIN_LCD_D1, PIN_LCD_D2, PIN_LCD_D3);
@@ -11,6 +12,10 @@ LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN,
 U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C oled(U8G2_R0);
 
 Game game;
+
+// Write games to SD
+File history;
+uint8_t lastGameStatus;
 
 uint64_t lastBoardState = DEFAULT_SENSORS_STATE;
 
@@ -20,6 +25,10 @@ void setup() {
     oled.begin();
     Serial.begin(115200);
     initializeGame(&game, lastBoardState);
+
+    initWriter(PIN_SD);
+    history        = openFile();
+    lastGameStatus = bits::White | bits::ToPlay;
 }
 
 void loop() {
@@ -59,15 +68,17 @@ void loop() {
     const uint64_t boardState = stabilizeBoardState(readChessboard());
 #endif
 
-    if (keyPressed == LCD_KEY::Select)
+    if (keyPressed == LCD_KEY::Select) {
         initializeGame(&game, boardState);
+    }
 
-        // Update game
+    bool played = false;
+    // Update game
 #ifdef USE_SERIAL_CHESSBOARD
     if (boardState != lastBoardState)
 #endif
     {
-        evolveGame(&game, boardState);
+        played = evolveGame(&game, boardState);
     }
 
     // Display moves on LCD screen
@@ -86,6 +97,37 @@ void loop() {
     }
     lcd.setCursor(0, 1);
     lcd.print(getStatusStr(game.state.status));
+
+    // Write move to file
+    if (played) {
+        Move* move;
+        if ((lastGameStatus & bits::White) != 0) {
+            // white played
+            writeToFile(&history, game.fullmoveClock);
+            writeToFile(&history, ".");
+            move = &game.lastMoveW;
+        } else {
+            // black played
+            move = &game.lastMoveB;
+        }
+
+        writeToFile(&history, " ");
+        writeToFile(&history, getMoveStr(*move));
+
+        if ((game.state.status & bits::Draw) != 0) {
+            writeToFile(&history, " 1/2-1/2");
+            closeFile(&history);
+        } else if ((game.state.status & bits::Finished) != 0) {
+            if ((game.state.status & bits::White) != 0) {
+                writeToFile(&history, " 1-0");
+            } else {
+                writeToFile(&history, " 0-1");
+            }
+            closeFile(&history);
+        }
+
+        lastGameStatus = game.state.status;
+    }
 
     // Display board state on OLED screen
     oled.firstPage();
