@@ -329,37 +329,40 @@ const char* getStatusStr(uint8_t p_status)
 //-----------------------------------------------------------------------------
 {
     // All strings are of equal width to clear LCD screen
-    switch (p_status) {
-    case bits::White | bits::ToPlay:
-        return "White to play  ";
-    case bits::White | bits::Playing:
-        return "White playing  ";
-    case bits::White | bits::Capturing:
-        return "White capturing";
-    case bits::White | bits::EnPassant:
-        return "White enpassant";
-    case bits::White | bits::Castling:
-        return "White castling ";
-    case bits::Black | bits::ToPlay:
-        return "Black to play  ";
-    case bits::Black | bits::Playing:
-        return "Black playing  ";
-    case bits::Black | bits::Capturing:
-        return "Black capturing";
-    case bits::Black | bits::EnPassant:
-        return "Black enpassant";
-    case bits::Black | bits::Castling:
-        return "Black castling ";
+    static char s_whiteStr[] = "White";
+    static char s_blackStr[] = "Black";
+
+    char* colorStr;
+    if ((p_status & bits::ColorMask) == bits::White) {
+        colorStr = s_whiteStr;
+    } else {
+        colorStr = s_blackStr;
+    }
+
+    const char format[6] = "%s %s";
+    static char ret[15];
+
+    // Ignore return value of sprintf, because what can we do?
+    switch (p_status & bits::MoveMask) {
+    case bits::ToPlay:
+        sprintf(ret, format, colorStr, "to play  ");
+    case bits::Playing:
+        sprintf(ret, format, colorStr, "playing  ");
+    case bits::Capturing:
+        sprintf(ret, format, colorStr, "capturing");
+    case bits::EnPassant:
+        sprintf(ret, format, colorStr, "enpassant");
+    case bits::Castling:
+        sprintf(ret, format, colorStr, "castling ");
     case bits::Draw | bits::Finished:
         return "Draw           ";
-    case bits::White | bits::Finished:
-        return "White won      ";
-    case bits::Black | bits::Finished:
-        return "Black won      ";
-
+    case bits::Finished:
+        sprintf(ret, format, colorStr, "won!     ");
     default:
-        return "Undefined      ";
+        return "Undefined state";
     };
+
+    return ret;
 }
 
 //-----------------------------------------------------------------------------
