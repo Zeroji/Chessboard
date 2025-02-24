@@ -25,12 +25,12 @@ File openFile() {
 }
 
 File openFile(DateTime ts) {
-    char* filename = "YYYYMMDD\0HH-MM-SS.txt";
+    char filename[22]; // 8 + '/' + 8 + '.' + 3 + '\0'
     sprintf(filename, "%04d%02d%02d", ts.year(), ts.month(), ts.day());
     if (!SD.exists(filename)) {
         SD.mkdir(filename);
     }
-    sprintf(&filename[8], "/%02d-%02d-%02d", ts.hour(), ts.minute(), ts.month());
+    sprintf(&filename[8], "/%02d-%02d-%02d.txt", ts.hour(), ts.minute(), ts.second());
     return SD.open(filename, FILE_WRITE);
 }
 

@@ -36,10 +36,6 @@ void setup() {
     }
 
     initWriter(PIN_SD_CS);
-
-    lcd.clear();
-    lcd.setCursor(2, 1);
-    lcd.write("Press Select");
 }
 
 void loop() {
@@ -101,6 +97,7 @@ void loop() {
         }
         lastGameStatus = bits::White | bits::ToPlay;
         gameStarted    = true;
+        lcd.clear();
     }
 
     if (false == gameStarted) {
@@ -112,6 +109,20 @@ void loop() {
             lcd.write(buf);
         } else {
             lcd.write("RTC not running!");
+        }
+        lcd.setCursor(2, 1);
+        if (boardState == 0xFFFF00000000FFFFuLL) {
+            lcd.write("Press Select");
+        } else {
+            uint8_t count = 0;
+            for (uint8_t i = 0; i < 64; i++)
+                if (boardState & (1uLL << i))
+                    count++;
+
+            char buf[3];
+            sprintf(buf, "%02d", count);
+            lcd.write(buf);
+            lcd.write("/32 pieces");
         }
         delay(10);
         return;

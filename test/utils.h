@@ -15,9 +15,8 @@ inline uint64_t EXEC(Game* p_game, const char* p_ptr, uint64_t p_sensorsState) {
     TEST_ASSERT_NOT_NULL(p_ptr);
     uint64_t nextSensorsState = p_sensorsState;
 
-    const char* localPtr = p_ptr;
-    while (*localPtr != 0) {
-        nextSensorsState = EXEC_ONE(p_game, localPtr, nextSensorsState);
+    while (*p_ptr != 0) {
+        nextSensorsState = EXEC_ONE(p_game, p_ptr, nextSensorsState);
     }
 
     return nextSensorsState;
