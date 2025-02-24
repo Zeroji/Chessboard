@@ -24,6 +24,16 @@ File openFile() {
     return SD.open(filename, FILE_WRITE);
 }
 
+File openFile(DateTime ts) {
+    char* filename = "YYYYMMDD\0HH-MM-SS.txt";
+    sprintf(filename, "%04d%02d%02d", ts.year(), ts.month(), ts.day());
+    if (!SD.exists(filename)) {
+        SD.mkdir(filename);
+    }
+    sprintf(&filename[8], "/%02d-%02d-%02d", ts.hour(), ts.minute(), ts.month());
+    return SD.open(filename, FILE_WRITE);
+}
+
 void writeToFile(File* p_file, const char* p_text) {
     if (nullptr == p_file) {
         return;

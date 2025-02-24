@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <LiquidCrystal.h>
+#include <RTClib.h>
 #include <U8g2lib.h>
 
 #include <chess.h>
@@ -9,26 +10,36 @@
 LiquidCrystal lcd(PIN_LCD_RS, PIN_LCD_EN,
                   PIN_LCD_D0, PIN_LCD_D1, PIN_LCD_D2, PIN_LCD_D3);
 
-U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C oled(U8G2_R0);
+// U8G2_SSD1306_128X32_UNIVISION_1_HW_I2C oled(U8G2_R0);
+
+RTC_DS1307 rtc;
 
 Game game;
 
 // Write games to SD
 File history;
+bool gameStarted = false;
 uint8_t lastGameStatus;
 
+#undef USE_SERIAL_CHESSBOARD
 uint64_t lastBoardState = DEFAULT_SENSORS_STATE;
 
 void setup() {
     initChessboard();
     lcd.begin(16, 2);
-    oled.begin();
+    // oled.begin();
     Serial.begin(115200);
     initializeGame(&game, lastBoardState);
 
-    initWriter(PIN_SD);
-    history        = openFile();
-    lastGameStatus = bits::White | bits::ToPlay;
+    if (!rtc.begin()) {
+        Serial.write("Couldn't find RTC!");
+    }
+
+    initWriter(PIN_SD_CS);
+
+    lcd.clear();
+    lcd.setCursor(2, 1);
+    lcd.write("Press Select");
 }
 
 void loop() {
@@ -68,8 +79,42 @@ void loop() {
     const uint64_t boardState = stabilizeBoardState(readChessboard());
 #endif
 
+    // // Display board state on OLED screen
+    // oled.firstPage();
+    // do {
+    //     oled.drawLine(30, 0, 30, 31);
+    //     oled.drawLine(97, 0, 97, 31);
+
+    //     for (byte lx = 0; lx < 8; lx++)
+    //         for (byte ly = 0; ly < 8; ly++)
+    //             if (boardState & (1uLL << ((7 - ly) * 8 + lx)))
+    //                 oled.drawBox(lx * 8 + 32, ly * 4, 8, 4);
+    // } while (oled.nextPage());
+
     if (keyPressed == LCD_KEY::Select) {
         initializeGame(&game, boardState);
+        if (rtc.isrunning()) {
+            DateTime now = rtc.now();
+            history      = openFile(now);
+        } else {
+            history = openFile();
+        }
+        lastGameStatus = bits::White | bits::ToPlay;
+        gameStarted    = true;
+    }
+
+    if (false == gameStarted) {
+        lcd.setCursor(0, 0);
+        if (rtc.isrunning()) {
+            DateTime now = rtc.now();
+            char buf[17];
+            sprintf(buf, "%04d-%02d-%02d %02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute());
+            lcd.write(buf);
+        } else {
+            lcd.write("RTC not running!");
+        }
+        delay(10);
+        return;
     }
 
     bool played = false;
@@ -124,22 +169,12 @@ void loop() {
                 writeToFile(&history, " 0-1");
             }
             closeFile(&history);
+        } else {
+            history.flush();
         }
 
         lastGameStatus = game.state.status;
     }
-
-    // Display board state on OLED screen
-    oled.firstPage();
-    do {
-        oled.drawLine(30, 0, 30, 31);
-        oled.drawLine(97, 0, 97, 31);
-
-        for (byte lx = 0; lx < 8; lx++)
-            for (byte ly = 0; ly < 8; ly++)
-                if (boardState & (1uLL << ((7 - ly) * 8 + lx)))
-                    oled.drawBox(lx * 8 + 32, ly * 4, 8, 4);
-    } while (oled.nextPage());
 
     lastBoardState = boardState;
 }
