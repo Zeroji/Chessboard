@@ -17,7 +17,7 @@ RTC_DS1307 rtc;
 Game game;
 
 // Write games to SD
-File history;
+SdFile history;
 bool gameStarted = false;
 uint8_t lastGameStatus;
 
@@ -159,29 +159,29 @@ void loop() {
         Move* move;
         if ((lastGameStatus & bits::White) != 0) {
             // white played
-            writeToFile(&history, game.fullmoveClock);
-            writeToFile(&history, ".");
+            writeToFile(history, game.fullmoveClock);
+            writeToFile(history, ".");
             move = &game.lastMoveW;
         } else {
             // black played
             move = &game.lastMoveB;
         }
 
-        writeToFile(&history, " ");
-        writeToFile(&history, getMoveStr(*move));
+        writeToFile(history, " ");
+        writeToFile(history, getMoveStr(*move));
 
         if ((game.state.status & bits::Draw) != 0) {
-            writeToFile(&history, " 1/2-1/2");
-            closeFile(&history);
+            writeToFile(history, " 1/2-1/2");
+            closeFile(history);
         } else if ((game.state.status & bits::Finished) != 0) {
             if ((game.state.status & bits::White) != 0) {
-                writeToFile(&history, " 1-0");
+                writeToFile(history, " 1-0");
             } else {
-                writeToFile(&history, " 0-1");
+                writeToFile(history, " 0-1");
             }
-            closeFile(&history);
+            closeFile(history);
         } else {
-            history.flush();
+            history.sync();
         }
 
         lastGameStatus = game.state.status;
