@@ -157,7 +157,7 @@ void loop() {
     // Write move to file
     if (played) {
         Move* move;
-        if ((lastGameStatus & bits::White) != 0) {
+        if ((lastGameStatus & bits::ColorMask) == bits::White) {
             // white played
             writeToFile(history, game.fullmoveClock);
             writeToFile(history, ".");

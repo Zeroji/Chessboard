@@ -1271,4 +1271,7 @@ void updateCheckState(Game* p_game, Move* p_move)
 
     p_move->check     = isCheck(p_game);
     p_move->checkmate = p_move->check ? isCheckmate(p_game) : false;
+    if (p_move->checkmate) {
+        p_game->state.status = bits::Finished | (p_move->piece & bits::ColorMask);
+    }
 }

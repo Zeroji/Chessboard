@@ -100,6 +100,31 @@ static void test_checkmate_bnilsou() {
     fclose(file);
 }
 
+static void test_move_checkmate() {
+    char fen_w[90] = "1r6/1r5k/8/8/8/8/K5R1/6R1 w - - 0 1";
+    char fen_b[90] = "1r6/1r5k/8/8/8/8/K5R1/6R1 b - - 0 1";
+
+    {
+        Game game;
+        initializeFromFEN(&game, fen_w);
+        TEST_ASSERT_FALSE_MESSAGE(isCheckmate(&game), fen_w);
+
+        uint64_t sensorsState = extractSensorsState(&game);
+        EXEC(&game, "-g1 +h1", sensorsState);
+        TEST_ASSERT_EQUAL(bits::White | bits::Finished, game.state.status);
+    }
+
+    {
+        Game game;
+        initializeFromFEN(&game, fen_b);
+        TEST_ASSERT_FALSE_MESSAGE(isCheckmate(&game), fen_b);
+
+        uint64_t sensorsState = extractSensorsState(&game);
+        EXEC(&game, "-b8 +a8", sensorsState);
+        TEST_ASSERT_EQUAL(bits::Black | bits::Finished, game.state.status);
+    }
+}
+
 void run_check() {
     UNITY_BEGIN();
 
@@ -107,6 +132,7 @@ void run_check() {
     RUN_TEST(test_notCheck);
     RUN_TEST(test_checkmate);
     RUN_TEST(test_checkmate_bnilsou);
+    RUN_TEST(test_move_checkmate);
 
     UNITY_END();
 }
