@@ -25,7 +25,8 @@ static void test_check() {
     for (uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++) {
         Game game;
         initializeFromFEN(&game, fens[i]);
-        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game), fens[i]);
+        uint8_t checkingColor = (game.state.status & bits::ColorMask) == bits::White ? bits::Black : bits::White;
+        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game, checkingColor), fens[i]);
         TEST_ASSERT_FALSE_MESSAGE(isCheckmate(&game), fens[i]);
     }
 }
@@ -48,7 +49,8 @@ static void test_notCheck() {
     for (uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++) {
         Game game;
         initializeFromFEN(&game, fens[i]);
-        TEST_ASSERT_FALSE_MESSAGE(isCheck(&game), fens[i]);
+        uint8_t checkingColor = (game.state.status & bits::ColorMask) == bits::White ? bits::Black : bits::White;
+        TEST_ASSERT_FALSE_MESSAGE(isCheck(&game, checkingColor), fens[i]);
         TEST_ASSERT_FALSE_MESSAGE(isCheckmate(&game), fens[i]);
     }
 }
@@ -76,7 +78,8 @@ static void test_checkmate() {
     for (uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++) {
         Game game;
         initializeFromFEN(&game, fens[i]);
-        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game), fens[i]);
+        uint8_t checkingColor = (game.state.status & bits::ColorMask) == bits::White ? bits::Black : bits::White;
+        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game, checkingColor), fens[i]);
         TEST_ASSERT_TRUE_MESSAGE(isCheckmate(&game), fens[i]);
     }
 }
@@ -93,7 +96,8 @@ static void test_checkmate_bnilsou() {
     while (fgets(buffer, bufferLength, file)) {
         Game game;
         initializeFromFEN(&game, buffer);
-        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game), buffer);
+        uint8_t checkingColor = (game.state.status & bits::ColorMask) == bits::White ? bits::Black : bits::White;
+        TEST_ASSERT_TRUE_MESSAGE(isCheck(&game, checkingColor), buffer);
         TEST_ASSERT_TRUE_MESSAGE(isCheckmate(&game), buffer);
     }
 

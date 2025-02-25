@@ -418,7 +418,7 @@ void printGame(Game* p_game)
 }
 
 //-----------------------------------------------------------------------------
-bool isCheck(Game* p_game)
+bool isCheck(Game* p_game, uint8_t p_checkingColor)
 //-----------------------------------------------------------------------------
 {
     if (NULL == p_game) {
@@ -431,14 +431,13 @@ bool isCheck(Game* p_game)
         return false;
     }
 
-    uint8_t nextPlayer     = (p_game->state.status & bits::ColorMask);
-    uint8_t checkingPlayer = (nextPlayer == bits::White) ? bits::Black : bits::White;
+    uint8_t checkedColor = (p_checkingColor == bits::White) ? bits::Black : bits::White;
 
     // Find King
     uint8_t checkedKingIndex = NULL_INDEX;
     for (uint8_t i = 0; i < 64; i++) {
         EPiece piece = p_game->board[i];
-        if ((true == isKing(piece)) && (nextPlayer == (bits::ColorMask & piece))) {
+        if ((true == isKing(piece)) && (checkedColor == (bits::ColorMask & piece))) {
             checkedKingIndex = i;
             break;
         }
@@ -450,7 +449,7 @@ bool isCheck(Game* p_game)
     }
 
     Move moves[1];
-    return findMovesToSquare(p_game, checkedKingIndex, checkingPlayer, true /* p_returnOnFirst */, true /* p_includeThreats */, moves);
+    return findMovesToSquare(p_game, checkedKingIndex, p_checkingColor, true /* p_returnOnFirst */, true /* p_includeThreats */, moves);
 }
 
 //-----------------------------------------------------------------------------
@@ -1269,6 +1268,96 @@ void updateCheckState(Game* p_game, Move* p_move)
         return;
     }
 
-    p_move->check     = isCheck(p_game);
+    p_move->check     = isCheck(p_game, moveColor);
     p_move->checkmate = p_move->check ? isCheckmate(p_game) : false;
+}
+
+//-----------------------------------------------------------------------------
+bool isMoveValid(Game* p_gameBeforeMove, Game* p_gameAfterMove, Move* p_move)
+//-----------------------------------------------------------------------------
+{
+    if (NULL == p_gameBeforeMove || NULL == p_move) {
+        return false;
+    }
+
+    uint8_t moveColor  = p_move->piece & bits::ColorMask;
+    uint8_t otherColor = (moveColor == bits::White) ? bits::Black : bits::White;
+
+    // 1. Playing color is under check
+    if (isCheck(p_gameAfterMove, otherColor)) {
+        return false;
+    }
+
+    // 2. Invalid piece displacement
+    uint8_t fromCol = p_move->start % 8;
+    uint8_t fromRow = p_move->start / 8;
+    uint8_t toCol   = p_move->end % 8;
+    uint8_t toRow   = p_move->end / 8;
+
+    int diffCol = fromCol - toCol;
+    int diffRow = fromRow - toRow;
+    int stepCol = (diffCol == 0) ? 0 : ((diffCol < 0) ? 1 : -1);
+    int stepRow = (diffRow == 0) ? 0 : ((diffRow < 0) ? 1 : -1);
+
+    bool orthogonal = (diffCol == 0 || diffRow == 0) && (diffCol != diffRow);
+    bool diagonal   = abs(diffCol) == abs(diffRow);
+
+    // No "jumping" over pieces for orthogonal/diagonal moves
+    if (orthogonal && stepRow == 0) {
+        for (uint8_t c = fromCol + stepCol; c < toCol; c += stepCol) {
+            EPiece piece = p_gameBeforeMove->board[8 * fromRow + c];
+            if (piece != EPiece::Empty) {
+                return false;
+            }
+        }
+    } else if (orthogonal && stepCol == 0) {
+        for (uint8_t r = fromRow + stepRow; r < toRow; r += stepRow) {
+            EPiece piece = p_gameBeforeMove->board[8 * r + fromCol];
+            if (piece != EPiece::Empty) {
+                return false;
+            }
+        }
+    } else if (diagonal) {
+        uint8_t c = fromCol + stepCol;
+        uint8_t r = fromRow + stepRow;
+        while ((8 * r + c) != p_move->end) {
+            EPiece piece = p_gameBeforeMove->board[8 * r + c];
+            if (piece != EPiece::Empty) {
+                return false;
+            }
+            c += stepCol;
+            r += stepRow;
+        }
+    }
+
+    // Check each piece displacement
+    if (isPawn(p_move->piece)) {
+        // First move by 1 or 2, then 1
+        // Only move forward
+        // Capture diagonally
+    } else if (isRook(p_move->piece)) {
+        if (!orthogonal) {
+            return false;
+        }
+    } else if (isBishop(p_move->piece)) {
+        if (!diagonal) {
+            return false;
+        }
+    } else if (isKnight(p_move->piece)) {
+        // L-shaped move
+    } else if (isQueen(p_move->piece)) {
+        if (!diagonal && !orthogonal) {
+            return false;
+        }
+    } else if (isKing(p_move->piece)) {
+        // Move by 1 (diagonal or orthogonal)
+        // Can move by 2 for castling, but:
+        //  - check for castling rights
+        //  - check for attacked squared
+        //  - check for rook final square
+    } else {
+        return false;
+    }
+
+    return true;
 }

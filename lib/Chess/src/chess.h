@@ -134,11 +134,12 @@ void writeSquareToStr(uint8_t p_index, char* p_buffer);
 const char* getStatusStr(uint8_t p_status);
 const char* getMoveStr(Move p_move);
 void printGame(Game* p_game);
-bool isCheck(Game* p_game);
+bool isCheck(Game* p_game, uint8_t p_checkingColor);
 bool isCheckmate(Game* p_game);
 uint8_t findMovesToSquare(Game* p_game, uint8_t p_targetSquare, uint8_t p_color, bool p_returnOnFirst, bool p_includeThreats, Move* p_moves);
 bool isPinned(Game* p_game, uint8_t p_piece, uint8_t p_king, uint8_t p_pinningColor);
 void updateCheckState(Game* p_game, Move* p_move);
+bool isMoveValid(Game* p_gameBeforeMove, Move* p_move);
 
 // The sensors status are stored in a 64-bits variable: b63 = h8, b62 = g8..., b55 = h7, b54 = g7..., b1 = b1, b0 = a1
 bool evolveGame(Game* p_game, uint64_t p_sensors);
