@@ -20,6 +20,7 @@ static void test_check() {
         "1q5k/8/8/Ppnn4/1nKn4/1nnn4/8/8 w - b6 0 1",                                // En-passant saving checkmate
         "1q5k/8/8/1pPn4/1nKn4/1nnn4/8/8 w - b6 0 1",                                // En-passant saving checkmate
         "8/8/8/8/8/2K5/8/1k5R b - - 0 1",                                           // King can escape
+        "5k2/8/8/8/8/5p2/8/r4K2 w - - 0 1",                                         // Pawn not defending cell in front of it
     };
 
     for (uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++) {
@@ -71,6 +72,7 @@ static void test_checkmate() {
         "4r2r/p6p/1pnN2p1/kQp5/3pPq2/3P4/PPP3PP/R5K1 b - - 0 2",         // Stolen from https://github.com/jhlywa/chess.js
         "r3k2r/ppp2p1p/2n1p1p1/8/2B2P1q/2NPb1n1/PP4PP/R2Q3K w kq - 0 8", // Stolen from https://github.com/jhlywa/chess.js
         "8/6R1/pp1r3p/6p1/P3R1Pk/1P4P1/7K/8 b - - 0 4",                  // Stolen from https://github.com/jhlywa/chess.js
+        "5k2/8/8/8/8/4pp2/8/r4K2 w - - 0 1",                             // Escape blocked by pawns
     };
 
     for (uint8_t i = 0; i < sizeof(fens) / sizeof(fens[0]); i++) {
